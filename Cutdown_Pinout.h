@@ -81,4 +81,6 @@
 #define GPS_TX_MUX       PIO_SERCOM
 #define GPS_RX_MUX       PIO_SERCOM
 
+void cutdown_pinmux(void);
+
 #endif
