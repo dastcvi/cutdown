@@ -15,13 +15,22 @@
 #include "wiring_private.h"
 #include <stdint.h>
 
+/* this typedef is matched in the backup MCU's driver */
+typedef enum {
+	CMD_EMPTY = 0x00,
+	RD_TIMER_HI = 0x01,
+	RD_TIMER_LO = 0x02,
+	WR_TIMER_HI = 0x03,
+	WR_TIMER_LO = 0x04,
+} SPI_Command_t;
 
 class Cutdown_ATtiny {
 public:
     Cutdown_ATtiny();
     ~Cutdown_ATtiny() { };
     void init(void);
-    void write_byte(uint8_t data);
+    uint16_t read_timer(void);
+    bool write_timer(uint16_t timer_val);
 private:
     SPIClass attiny_spi;
     SPISettings attiny_spi_settings;

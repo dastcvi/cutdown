@@ -23,9 +23,60 @@ void Cutdown_ATtiny::init()
     digitalWrite(ATTINY_RST, HIGH); /* keep out of reset */
 }
 
-void Cutdown_ATtiny::write_byte(uint8_t data)
+uint16_t Cutdown_ATtiny::read_timer(void)
+{
+    uint16_t attiny_timer = 0;
+
+    attiny_spi.beginTransaction(attiny_spi_settings);
+    attiny_spi.transfer(RD_TIMER_LO);
+    attiny_spi.endTransaction();
+    
+    delay(1); /* give it time to process the last byte */
+
+    attiny_spi.beginTransaction(attiny_spi_settings);
+    attiny_timer = attiny_spi.transfer(CMD_EMPTY);
+    attiny_spi.endTransaction();
+    
+    delay(1); /* give it time to process the last byte */
+
+    attiny_spi.beginTransaction(attiny_spi_settings);
+    attiny_spi.transfer(RD_TIMER_HI);
+    attiny_spi.endTransaction();
+    
+    delay(1); /* give it time to process the last byte */
+
+    attiny_spi.beginTransaction(attiny_spi_settings);
+    attiny_timer |= ((uint16_t) attiny_spi.transfer(CMD_EMPTY) << 8);
+    attiny_spi.endTransaction();
+
+    return attiny_timer;
+}
+
+bool Cutdown_ATtiny::write_timer(uint16_t timer_val)
 {
     attiny_spi.beginTransaction(attiny_spi_settings);
-    attiny_spi.transfer(data);
+    attiny_spi.transfer(WR_TIMER_LO);
     attiny_spi.endTransaction();
+    
+    delay(1); /* give it time to process the last byte */
+
+    attiny_spi.beginTransaction(attiny_spi_settings);
+    attiny_spi.transfer(timer_val & 0xff);
+    attiny_spi.endTransaction();
+    
+    delay(1); /* give it time to process the last byte */
+
+    attiny_spi.beginTransaction(attiny_spi_settings);
+    attiny_spi.transfer(WR_TIMER_HI);
+    attiny_spi.endTransaction();
+    
+    delay(1); /* give it time to process the last byte */
+
+    attiny_spi.beginTransaction(attiny_spi_settings);
+    attiny_spi.transfer(timer_val >> 8);
+    attiny_spi.endTransaction();
+    
+    delay(1); /* give it time to process the last byte */
+
+    return (timer_val == read_timer());
 }
