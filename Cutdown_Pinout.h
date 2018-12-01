@@ -49,7 +49,7 @@
 #define OLED_MOSI_MUX    PIO_SERCOM_ALT
 #define OLED_SCK_MUX     PIO_SERCOM_ALT
 #define OLED_SPEED       100000
-#define OLED_MODE        SPI_MODE3
+#define OLED_MODE        SPI_MODE0
 #define OLED_ORDER       LSBFIRST
 
 // ATtiny
@@ -63,6 +63,9 @@
 #define ATTINY_MISO_MUX  PIO_SERCOM
 #define ATTINY_MOSI_MUX  PIO_SERCOM
 #define ATTINY_SCK_MUX   PIO_SERCOM
+#define ATTINY_SPEED     100000
+#define ATTINY_MODE      SPI_MODE3
+#define ATTINY_ORDER     MSBFIRST
 
 // Altimeter
 #define ALTIM_SDA        22 /* PA12, 2.0 */

@@ -21,6 +21,7 @@ void Cutdown::init(void)
 {
     cutdown_pinmux();
     oled.init();
+    attiny.init();
 }
 
 /* called in arduino loop() */
@@ -79,6 +80,8 @@ void Cutdown::armed(void)
         oled.clear();
         oled.write_line("Time remaining", LINE1);
         oled.write_line(timer_string, LINE2);
+        
+        attiny.write_byte(0x00);
 
         delay(990); // todo: replace with timer interrupts
     }

@@ -16,9 +16,9 @@ void Cutdown_OLED::init(void)
 {
     // start SPI
     oled_spi.begin();
-    pinPeripheral(OLED_MISO, PIO_SERCOM_ALT);
-    pinPeripheral(OLED_MOSI, PIO_SERCOM_ALT);
-    pinPeripheral(OLED_SCK, PIO_SERCOM_ALT);
+    pinPeripheral(OLED_MISO, OLED_MISO_MUX);
+    pinPeripheral(OLED_MOSI, OLED_MOSI_MUX);
+    pinPeripheral(OLED_SCK, OLED_SCK_MUX);
     pinMode(OLED_CS, OUTPUT);
     digitalWrite(OLED_CS, LOW);
     pinMode(OLED_RES, OUTPUT);

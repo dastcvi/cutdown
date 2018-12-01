@@ -11,6 +11,7 @@
 
 #include "Cutdown_Pinout.h"
 #include "Cutdown_OLED.h"
+#include "Cutdown_ATtiny.h"
 
 #define DEFAULT_TIMER	60
 
@@ -38,6 +39,7 @@ private:
     uint16_t cutdown_timer;
 
     Cutdown_OLED oled;
+    Cutdown_ATtiny attiny;
 };
 
 #endif
