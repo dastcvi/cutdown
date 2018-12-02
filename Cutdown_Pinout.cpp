@@ -15,4 +15,6 @@ void cutdown_pinmux(void)
     digitalWrite(SQUIB1_GATE, LOW);
     pinMode(SQUIB2_GATE, OUTPUT);
     digitalWrite(SQUIB2_GATE, LOW);
+    pinMode(SQUIB_FIRED, OUTPUT);
+    digitalWrite(SQUIB_FIRED, LOW);
 }

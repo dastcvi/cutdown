@@ -7,7 +7,7 @@
  */
 
 #include "Cutdown.h"
-
+#include "Cutdown_Configure.h"
 
 Cutdown::Cutdown() :
     oled()
@@ -22,6 +22,7 @@ void Cutdown::init(void)
     cutdown_pinmux();
     oled.init();
     attiny.init();
+    config_init();
 
     delay(1000);
 }
@@ -56,20 +57,27 @@ void Cutdown::unarmed(void)
     oled.write_line("Cutdown", LINE1);
     oled.write_line("Unarmed", LINE2);
 
-    while (digitalRead(SYSTEM_ARM) == LOW);
+    while (digitalRead(SYSTEM_ARM) == LOW) {
+        config_update();
+        //delay(1000);
+        //Serial.println("loop");
+        //oled.clear();
+        //oled.write_line("Cutdown", LINE1);
+        //oled.write_line("Unarmed", LINE2);
+    }
 
     state = ST_ARMED;
 }
 
 void Cutdown::armed(void)
 {
-    cutdown_timer = DEFAULT_TIMER;
+    cutdown_timer = cutdown_config.primary_timer;
     char line1[16] = "";
     char line2[16] = "";
 
     sprintf(line1, "Backup timer:");
-    if (attiny.write_timer(DEFAULT_BACKUP_TIMER)) {
-        sprintf(line2, "%u s", DEFAULT_BACKUP_TIMER);
+    if (attiny.write_timer(cutdown_config.backup_timer)) {
+        sprintf(line2, "%u s", cutdown_config.backup_timer);
     } else {
         sprintf(line2, "FAILED TO SET");
     }
@@ -117,6 +125,9 @@ void Cutdown::fire(void)
     digitalWrite(SQUIB1_GATE, LOW);
 
     oled.write_line("Fired 1", LINE2);
+
+    // keep the backup MCU from firing another squib
+    digitalWrite(SQUIB_FIRED, HIGH);
 
     state = ST_FINISHED;
 }
