@@ -80,3 +80,17 @@ bool Cutdown_ATtiny::write_timer(uint16_t timer_val)
 
     return (timer_val == read_timer());
 }
+
+void Cutdown_ATtiny::arm(void)
+{
+    attiny_spi.beginTransaction(attiny_spi_settings);
+    attiny_spi.transfer(CMD_ARM);
+    attiny_spi.endTransaction();
+}
+
+void Cutdown_ATtiny::disarm(void)
+{
+    attiny_spi.beginTransaction(attiny_spi_settings);
+    attiny_spi.transfer(CMD_DISARM);
+    attiny_spi.endTransaction();
+}

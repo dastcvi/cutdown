@@ -22,27 +22,13 @@ void Cutdown::init(void)
     cutdown_pinmux();
     oled.init();
     attiny.init();
+
+    delay(1000);
 }
 
 /* called in arduino loop() */
 void Cutdown::run(void)
 {
-    uint16_t timer_val = 0;
-    bool timer_success = false;
-    char line1[16] = "";
-    char line2[16] = "";
-
-    timer_success = attiny.write_timer(timer_val);
-    timer_val = attiny.read_timer();
-
-    sprintf(line1, "success: %d", timer_success);
-    sprintf(line2, "timer: %u", timer_val);
-
-    oled.write_line(line1, LINE1);
-    oled.write_line(line2, LINE2);
-
-    while(1);
-
     switch (state) {
         case ST_UNARMED:
             unarmed();
@@ -64,6 +50,8 @@ void Cutdown::run(void)
 
 void Cutdown::unarmed(void)
 {
+    attiny.disarm();
+
     oled.clear();
     oled.write_line("Cutdown", LINE1);
     oled.write_line("Unarmed", LINE2);
@@ -76,13 +64,29 @@ void Cutdown::unarmed(void)
 void Cutdown::armed(void)
 {
     cutdown_timer = DEFAULT_TIMER;
-    char timer_string[16] = "";
+    char line1[16] = "";
+    char line2[16] = "";
+
+    sprintf(line1, "Backup timer:");
+    if (attiny.write_timer(DEFAULT_BACKUP_TIMER)) {
+        sprintf(line2, "%u s", DEFAULT_BACKUP_TIMER);
+    } else {
+        sprintf(line2, "FAILED TO SET");
+    }
+
+    oled.clear();
+    oled.write_line(line1, LINE1);
+    oled.write_line(line2, LINE2);
+
+    delay(2000);
 
     oled.clear();
     oled.write_line("System", LINE1);
     oled.write_line("Armed", LINE2);
 
     delay(2000);
+    
+    attiny.arm();
 
     while (cutdown_timer > 0)
     {
@@ -91,11 +95,11 @@ void Cutdown::armed(void)
             return;
         }
 
-        sprintf(timer_string, "%d s", cutdown_timer--);
+        sprintf(line2, "%d s", cutdown_timer--);
 
         oled.clear();
         oled.write_line("Time remaining", LINE1);
-        oled.write_line(timer_string, LINE2);
+        oled.write_line(line2, LINE2);
         
         delay(990); // todo: replace with timer interrupts
     }

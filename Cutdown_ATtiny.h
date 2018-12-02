@@ -22,6 +22,8 @@ typedef enum {
 	RD_TIMER_LO = 0x02,
 	WR_TIMER_HI = 0x03,
 	WR_TIMER_LO = 0x04,
+	CMD_ARM = 0x05,		/* software workaround for hardware error (arming signal same as SCK, had initially intended UART, not SPI) */
+	CMD_DISARM = 0x06,
 } SPI_Command_t;
 
 class Cutdown_ATtiny {
@@ -31,6 +33,8 @@ public:
     void init(void);
     uint16_t read_timer(void);
     bool write_timer(uint16_t timer_val);
+    void arm(void);
+    void disarm(void);
 private:
     SPIClass attiny_spi;
     SPISettings attiny_spi_settings;

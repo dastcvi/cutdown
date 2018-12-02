@@ -13,7 +13,8 @@
 #include "Cutdown_OLED.h"
 #include "Cutdown_ATtiny.h"
 
-#define DEFAULT_TIMER	60
+#define DEFAULT_TIMER	        15
+#define DEFAULT_BACKUP_TIMER	20
 
 typedef enum {
     ST_UNARMED,
