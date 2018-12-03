@@ -16,6 +16,9 @@
 #define DEFAULT_TIMER	        15
 #define DEFAULT_BACKUP_TIMER	20
 
+// uncomment if the backup timer should fire regardless of the primary
+#define DEMO_BACKUP_TIMER
+
 typedef enum {
     ST_UNARMED,
     ST_ARMED,

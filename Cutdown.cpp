@@ -59,11 +59,11 @@ void Cutdown::unarmed(void)
 
     while (digitalRead(SYSTEM_ARM) == LOW) {
         config_update();
-        //delay(1000);
-        //Serial.println("loop");
-        //oled.clear();
-        //oled.write_line("Cutdown", LINE1);
-        //oled.write_line("Unarmed", LINE2);
+        oled.init();
+        oled.clear();
+        oled.write_line("Cutdown", LINE1);
+        oled.write_line("Unarmed", LINE2);
+        delay(500);
     }
 
     state = ST_ARMED;
@@ -127,7 +127,9 @@ void Cutdown::fire(void)
     oled.write_line("Fired 1", LINE2);
 
     // keep the backup MCU from firing another squib
+#ifndef DEMO_BACKUP_TIMER
     digitalWrite(SQUIB_FIRED, HIGH);
+#endif
 
     state = ST_FINISHED;
 }
