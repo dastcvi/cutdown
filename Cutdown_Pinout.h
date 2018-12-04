@@ -67,12 +67,12 @@
 #define ATTINY_MODE      SPI_MODE3
 #define ATTINY_ORDER     MSBFIRST
 
-// Altimeter
-#define ALTIM_SDA        22 /* PA12, 2.0 */
-#define ALTIM_SCL        38 /* PA13, 2.1 */
-#define ALTIM_SERCOM     (&sercom2)
-#define ALTIM_SDA_MUX    PIO_SERCOM
-#define ALTIM_SCL_MUX    PIO_SERCOM
+// Barometric Altimeter
+#define BARO_SDA         22 /* PA12, 2.0 */
+#define BARO_SCL         38 /* PA13, 2.1 */
+#define BARO_SERCOM      (&sercom2)
+#define BARO_SDA_MUX     PIO_SERCOM
+#define BARO_SCL_MUX     PIO_SERCOM
 
 // GPS
 #define GPS_TX           13 /* PA17, 1.1 */

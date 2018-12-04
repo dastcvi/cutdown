@@ -30,23 +30,11 @@ void Cutdown::init(void)
 /* called in arduino loop() */
 void Cutdown::run(void)
 {
-    switch (state) {
-        case ST_UNARMED:
-            unarmed();
-            break;
-        case ST_ARMED:
-            armed();
-            break;
-        case ST_FIRE:
-            fire();
-            break;
-        case ST_FINISHED:
-            finished();
-            break;
-        default:
-            // this shouldn't happen
-            break;
-    }
+    // check for an out of bounds state
+    if (state < 0 || state >= NUM_STATES) state = ST_UNARMED;
+
+    // call the method for the new state
+    (this->*(state_array[state]))();
 }
 
 void Cutdown::unarmed(void)
@@ -59,7 +47,7 @@ void Cutdown::unarmed(void)
 
     while (digitalRead(SYSTEM_ARM) == LOW) {
         config_update();
-        oled.init();
+        oled.init(); // workaround, serial for configuring kills the OLED
         oled.clear();
         oled.write_line("Cutdown", LINE1);
         oled.write_line("Unarmed", LINE2);
