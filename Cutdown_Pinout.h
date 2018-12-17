@@ -27,14 +27,14 @@
 #define SQUIB_FIRED      31 /* PB23 */
 
 // ADC
-#define THERMISTOR       A0 /* PA02 */
+#define THERMISTOR       14 /* PA02 */
 #define VMON_SQUIB1      -1 /* PA03 */
-#define VMON_SQUIB2      A3 /* PA04 */
-#define VMON_3V3A        A4 /* PA05 */
-#define VMON_3V3B        -1 /* PA06 */
-#define VMON_BATT1       -1 /* PA07 */
-#define VMON_BATT2       A5 /* PB02 */
-#define VMON_VBATT       -1 /* PB03 */
+#define VMON_SQUIB2      17 /* PA04 */
+#define VMON_3V3A        18 /* PA05 */
+#define VMON_3V3B        8  /* PA06, not arduino analog, but works */
+#define VMON_BATT1       9  /* PA07, not arduino analog, but works */
+#define VMON_BATT2       19 /* PB02 */
+#define VMON_VBATT       25 /* PB03, not arduino analog, weird behavior */
 
 // OLED
 #define OLED_MISO        16 /* PB09, 4.1 */
@@ -76,9 +76,9 @@
 
 // GPS
 #define GPS_TX           13 /* PA17, 1.1 */
-#define GPS_RX           36 /* PA18, 1.2 */
+#define GPS_RX           10 /* PA18, 1.2 */
 #define GPS_RESET        12 /* PA19 */
-#define GPS_TX_PAD       UART_TX_PAD2
+#define GPS_TX_PAD       UART_TX_PAD_2
 #define GPS_RX_PAD       SERCOM_RX_PAD_1
 #define GPS_SERCOM       (&sercom1)
 #define GPS_TX_MUX       PIO_SERCOM
