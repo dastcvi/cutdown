@@ -8,6 +8,7 @@
 #ifndef CUTDOWN_GPS_H
 #define CUTDOWN_GPS_H
 
+#include "Cutdown_GPS_Messages.h"
 #include "Cutdown_Pinout.h"
 #include "Arduino.h"
 #include "SERCOM.h"
@@ -19,9 +20,10 @@
 #define SYNC2               0x62
 
 typedef struct {
-    int32_t longitude;
-    int32_t latitude;
-    int32_t height;
+    float longitude;
+    float latitude;
+    float height;
+    uint8_t num_satellites;
 } GPS_Data_t;
 
 class Cutdown_GPS {
@@ -31,14 +33,22 @@ public:
 
     void init(void);
 
-    void test(void);
+    // turns off the default NMEA outputs
+    bool stop_nmea(void);
 
-    bool update_fix(void);
+    // attempts to update the GPS fix (will only update lat/long/height if 3D fix,
+    // but will still update num_satellites regardless)
+    GPS_FIX_TYPE_t update_fix(void);
+
     bool set_reference(void);
     float get_distance(void);
+
+    GPS_Data_t gps_data = {0};
 private:
     void transmit_ubx(uint8_t * buffer, uint16_t length);
     bool verify_ack(void);
+
+    bool verify_checksum(unsigned long start_time, uint8_t * buffer, uint16_t length);
 
     void calculate_checksum(uint8_t * buffer, uint16_t length, uint8_t * cka, uint8_t * ckb);
 

@@ -6,9 +6,17 @@
  */
 
 #include "Cutdown_GPS.h"
-#include "Cutdown_GPS_Messages.h"
 
 Uart GPS_Serial(GPS_SERCOM, GPS_RX, GPS_TX, GPS_RX_PAD, GPS_TX_PAD);
+
+// messages to send to the receiver
+uint8_t UBX_Poll_PVT[] = {0xB5, 0x62, 0x01, 0x07, 0x00, 0x00, 0x08, 0x19};
+uint8_t UBX_Stop_GGA[] = {0xB5, 0x62, 0x06, 0x01, 0x03, 0x00, 0xF0, 0x00, 0x00, 0xFA, 0x0F};
+uint8_t UBX_Stop_GLL[] = {0xB5, 0x62, 0x06, 0x01, 0x03, 0x00, 0xF0, 0x01, 0x00, 0xFB, 0x11};
+uint8_t UBX_Stop_GSA[] = {0xB5, 0x62, 0x06, 0x01, 0x03, 0x00, 0xF0, 0x02, 0x00, 0xFC, 0x13};
+uint8_t UBX_Stop_GSV[] = {0xB5, 0x62, 0x06, 0x01, 0x03, 0x00, 0xF0, 0x03, 0x00, 0xFD, 0x15};
+uint8_t UBX_Stop_RMC[] = {0xB5, 0x62, 0x06, 0x01, 0x03, 0x00, 0xF0, 0x04, 0x00, 0xFE, 0x17};
+uint8_t UBX_Stop_VTG[] = {0xB5, 0x62, 0x06, 0x01, 0x03, 0x00, 0xF0, 0x05, 0x00, 0xFF, 0x19};
 
 void SERCOM1_Handler()
 {
@@ -22,57 +30,65 @@ void Cutdown_GPS::init(void)
     pinPeripheral(GPS_TX, GPS_TX_MUX);
 }
 
-void Cutdown_GPS::test(void)
+bool Cutdown_GPS::stop_nmea(void)
 {
-    // transmit_ubx(UBX_Stop_GGA, sizeof(UBX_Stop_GGA));
-    // if (verify_ack()) {
-    //     Serial.println("Verified ACK");
-    // } else {
-    //     Serial.println("Error with ACK");
-    // }
+    bool success = true;
 
-    // transmit_ubx(UBX_Stop_GLL, sizeof(UBX_Stop_GLL));
-    // if (verify_ack()) {
-    //     Serial.println("Verified ACK");
-    // } else {
-    //     Serial.println("Error with ACK");
-    // }
+    transmit_ubx(UBX_Stop_GGA, sizeof(UBX_Stop_GGA));
+    success &= verify_ack();
 
-    // transmit_ubx(UBX_Stop_GSA, sizeof(UBX_Stop_GSA));
-    // if (verify_ack()) {
-    //     Serial.println("Verified ACK");
-    // } else {
-    //     Serial.println("Error with ACK");
-    // }
+    transmit_ubx(UBX_Stop_GLL, sizeof(UBX_Stop_GLL));
+    success &= verify_ack();
 
-    // transmit_ubx(UBX_Stop_GSV, sizeof(UBX_Stop_GSV));
-    // if (verify_ack()) {
-    //     Serial.println("Verified ACK");
-    // } else {
-    //     Serial.println("Error with ACK");
-    // }
+    transmit_ubx(UBX_Stop_GSA, sizeof(UBX_Stop_GSA));
+    success &= verify_ack();
 
-    // transmit_ubx(UBX_Stop_RMC, sizeof(UBX_Stop_RMC));
-    // if (verify_ack()) {
-    //     Serial.println("Verified ACK");
-    // } else {
-    //     Serial.println("Error with ACK");
-    // }
+    transmit_ubx(UBX_Stop_GSV, sizeof(UBX_Stop_GSV));
+    success &= verify_ack();
 
-    // transmit_ubx(UBX_Stop_VTG, sizeof(UBX_Stop_VTG));
-    // if (verify_ack()) {
-    //     Serial.println("Verified ACK");
-    // } else {
-    //     Serial.println("Error with ACK");
-    // }
+    transmit_ubx(UBX_Stop_RMC, sizeof(UBX_Stop_RMC));
+    success &= verify_ack();
 
-    // delay(5000);
+    transmit_ubx(UBX_Stop_VTG, sizeof(UBX_Stop_VTG));
+    success &= verify_ack();
 
-    while(1) {
-        while (GPS_Serial.available()) {
-            Serial.print((char) GPS_Serial.read());
+    return success;
+}
+
+GPS_FIX_TYPE_t Cutdown_GPS::update_fix(void)
+{
+    static UBX_NAV_PVT_t message = {0};
+    unsigned long start_time = millis();
+    uint8_t bytes_read = 0;
+
+    // transmit the message to request the info
+    transmit_ubx(UBX_Poll_PVT, sizeof(UBX_Poll_PVT));
+
+    // wait for sync bytes with timeout
+    if (!get_sync_bytes(start_time)) return FIX_NONE;
+
+    // read the message
+    while ((bytes_read < sizeof(UBX_NAV_PVT_t)) && (millis() - start_time < ACK_TIMEOUT)) {
+        if (GPS_Serial.available()) {
+            message.buffer[bytes_read++] = GPS_Serial.read();
         }
     }
+
+    // get and verify the checksum
+    if (!verify_checksum(start_time, message.buffer, sizeof(message))) return FIX_NONE;
+
+    // verify the message
+    if (message.fields.msg_class != NAV_PVT_CLASS) return FIX_NONE;
+    if (message.fields.msg_id != NAV_PVT_ID) return FIX_NONE;
+
+    gps_data.num_satellites = message.fields.num_satellites;
+    if (message.fields.fix_type == FIX_3D) {
+        gps_data.longitude = message.fields.longitude * 10^-7; // undo chip scaling by 1e-7 to get degrees
+        gps_data.latitude = message.fields.latitude * 10^-7; // undo chip scaling by 1e-7 to get degrees
+        gps_data.height = message.fields.sealevel_height * 10^-3; // convert mm to m
+    }
+
+    return (GPS_FIX_TYPE_t) message.fields.fix_type;
 }
 
 void Cutdown_GPS::transmit_ubx(uint8_t * buffer, uint16_t length)
@@ -84,13 +100,9 @@ void Cutdown_GPS::transmit_ubx(uint8_t * buffer, uint16_t length)
 
 bool Cutdown_GPS::verify_ack(void)
 {
-    UBX_ACK_NAK_t message = {0};
+    static UBX_ACK_NAK_t message = {0};
     unsigned long start_time = millis();
     uint8_t bytes_read = 0;
-    uint8_t cka = 0;
-    uint8_t ckb = 0;
-    uint8_t cka_calc = 0;
-    uint8_t ckb_calc = 0;
     
     // wait for sync bytes with timeout
     if (!get_sync_bytes(start_time)) return false;
@@ -103,14 +115,25 @@ bool Cutdown_GPS::verify_ack(void)
     }
 
     // get and verify the checksum
-    if (!get_check_bytes(start_time, &cka, &ckb)) return false;
-    calculate_checksum(message.buffer, sizeof(message), &cka_calc, &ckb_calc);
-    if ((cka != cka_calc) || (ckb != ckb_calc)) return false;
+    if (!verify_checksum(start_time, message.buffer, sizeof(message))) return false;
 
     // verify the ack
     if (message.fields.msg_class != ACK_NAK_CLASS) return false;
     if (message.fields.msg_id != ACK_ID) return false;
     return true;
+}
+
+bool Cutdown_GPS::verify_checksum(unsigned long start_time, uint8_t * buffer, uint16_t length)
+{
+    uint8_t cka = 0;
+    uint8_t ckb = 0;
+    uint8_t cka_calc = 0;
+    uint8_t ckb_calc = 0;
+
+    // get and verify the checksum
+    if (!get_check_bytes(start_time, &cka, &ckb)) return false;
+    calculate_checksum(buffer, length, &cka_calc, &ckb_calc);
+    if ((cka != cka_calc) || (ckb != ckb_calc)) return false;
 }
 
 void Cutdown_GPS::calculate_checksum(uint8_t * buffer, uint16_t length, uint8_t * cka, uint8_t * ckb)
