@@ -7,6 +7,18 @@
 
 #include "Cutdown_ADC.h"
 
+// returns the temperature in celsius given the MCP9700A thermistor voltage
+float calculate_temperature(float voltage)
+{
+    return (voltage - THERM_OFFSET) * THERM_COEFFICIENT;
+}
+
+// returns the temperature in fahrenheit given the MCP9700A thermistor voltage
+float calculate_fahrenheit(float voltage)
+{
+    return ((voltage - THERM_OFFSET) * THERM_COEFFICIENT) * (1.8f) + 32;
+}
+
 // ADC_Channel methods ------------------------------------------
 ADC_Channel::ADC_Channel(float last, float divide, uint8_t pin)
 {
@@ -32,11 +44,11 @@ Cutdown_ADC::Cutdown_ADC() :
     thermistor (0.0f,  THERM_DIVIDE,  THERMISTOR),
     squib1     (0.0f,  SQUIB1_DIVIDE, VMON_SQUIB1),
     squib2     (0.0f,  SQUIB1_DIVIDE, VMON_SQUIB2),
-    v_3v3a     (0.0f,  V3V3A_DIVIDE,  VMON_3V3A),
-    v_3v3b     (0.0f,  V3V3B_DIVIDE,  VMON_3V3B),
-    v_batt1    (0.0f,  VBATT1_DIVIDE, VMON_BATT1),
-    v_batt2    (0.0f,  VBATT2_DIVIDE, VMON_BATT2),
-    v_batt     (0.0f,  VBATT_DIVIDE,  VMON_VBATT)
+    v_3v3a     (3.3f,  V3V3A_DIVIDE,  VMON_3V3A),
+    v_3v3b     (3.3f,  V3V3B_DIVIDE,  VMON_3V3B),
+    v_batt1    (12.0f, VBATT1_DIVIDE, VMON_BATT1),  // needs to start above low-battery threshold
+    v_batt2    (12.0f, VBATT2_DIVIDE, VMON_BATT2),  // needs to start above low-battery threshold
+    v_batt     (12.0f, VBATT_DIVIDE,  VMON_VBATT)   // needs to start above low-battery threshold
 { }
 
 void Cutdown_ADC::init(void)

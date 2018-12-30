@@ -16,3 +16,6 @@ void loop() {
   cutdown.run();
 }
 ```
+
+## examples directory
+The examples directory holds the scripts that use the library. This includes the main script used to run the board as well as test scripts used while developing certain components.

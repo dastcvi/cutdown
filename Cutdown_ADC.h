@@ -13,6 +13,10 @@
 #include "wiring_private.h"
 #include <stdint.h>
 
+// MCP9700A thermistor constants
+#define THERM_OFFSET	    (0.5f)
+#define THERM_COEFFICIENT	(100.0f)
+
 // General ADC constants
 #define REFERENCE_VOLTAGE	(2.23f)
 #define ADC_MAX	            (4095.0f)
@@ -26,6 +30,12 @@
 #define VBATT1_DIVIDE   (0.1104f) // vbatt1 - 80.6k - ADC - 10k - GND
 #define VBATT2_DIVIDE   (0.1104f) // vbatt2 - 80.6k - ADC - 10k - GND
 #define VBATT_DIVIDE    (0.1104f) // vbatt  - 80.6k - ADC - 10k - GND
+
+// returns the temperature in celsius given the MCP9700A thermistor voltage
+float calculate_temperature(float voltage);
+
+// returns the temperature in fahrenheit given the MCP9700A thermistor voltage
+float calculate_fahrenheit(float voltage);
 
 class ADC_Channel {
 public:
