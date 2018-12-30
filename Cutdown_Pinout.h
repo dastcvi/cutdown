@@ -86,4 +86,6 @@
 
 void cutdown_pinmux(void);
 
+void cutdown_poweroff(void);
+
 #endif

@@ -3,6 +3,11 @@
  * Created: 12-17-18
  * 
  * Defines a driver to interface with the uBlox MAX-M8 GPS
+ * 
+ * This driver implements a polling interface using the uBlox UBX protocol in lieu of
+ * reading NMEA strings output at a standard interval. This minimizes bus traffic (only
+ * one binary UBX message is necessary) and removes the need to asynchronously buffer
+ * NMEA strings for parsing.
  */
 
 #ifndef CUTDOWN_GPS_H
@@ -15,14 +20,14 @@
 #include "wiring_private.h"
 #include <stdint.h>
 
-#define ACK_TIMEOUT	        1000 // in ms
+#define GPS_MSG_TIMEOUT	    2000 // in ms
 #define SYNC1               0xB5
 #define SYNC2               0x62
 
 typedef struct {
-    float longitude;
-    float latitude;
-    float height;
+    float longitude; // degrees
+    float latitude;  // degrees
+    float height;    // meters
     uint8_t num_satellites;
 } GPS_Data_t;
 

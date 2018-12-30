@@ -22,6 +22,11 @@ float ADC_Channel::read(void)
     return last_voltage;
 }
 
+float ADC_Channel::check(void)
+{
+    return last_voltage;
+}
+
 // Cutdown_ADC methods ------------------------------------------
 Cutdown_ADC::Cutdown_ADC() :
     thermistor (0.0f,  THERM_DIVIDE,  THERMISTOR),

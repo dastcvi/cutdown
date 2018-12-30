@@ -3,6 +3,11 @@
  * Created: 12-17-18
  * 
  * Implements a driver to interface with the uBlox MAX-M8 GPS
+ * 
+ * This driver implements a polling interface using the uBlox UBX protocol in lieu of
+ * reading NMEA strings output at a standard interval. This minimizes bus traffic (only
+ * one binary UBX message is necessary) and removes the need to asynchronously buffer
+ * NMEA strings for parsing.
  */
 
 #include "Cutdown_GPS.h"
@@ -68,11 +73,14 @@ GPS_FIX_TYPE_t Cutdown_GPS::update_fix(void)
     if (!get_sync_bytes(start_time)) return FIX_NONE;
 
     // read the message
-    while ((bytes_read < sizeof(UBX_NAV_PVT_t)) && (millis() - start_time < ACK_TIMEOUT)) {
+    while ((bytes_read < sizeof(UBX_NAV_PVT_t)) && (millis() - start_time < GPS_MSG_TIMEOUT)) {
         if (GPS_Serial.available()) {
             message.buffer[bytes_read++] = GPS_Serial.read();
         }
     }
+
+    // ensure we haven't timed out
+    if (bytes_read != sizeof(UBX_NAV_PVT_t)) return FIX_NONE;
 
     // get and verify the checksum
     if (!verify_checksum(start_time, message.buffer, sizeof(message))) return FIX_NONE;
@@ -80,12 +88,13 @@ GPS_FIX_TYPE_t Cutdown_GPS::update_fix(void)
     // verify the message
     if (message.fields.msg_class != NAV_PVT_CLASS) return FIX_NONE;
     if (message.fields.msg_id != NAV_PVT_ID) return FIX_NONE;
+    if (message.fields.msg_length != sizeof(UBX_NAV_PVT_t) - 4) return FIX_NONE;
 
     gps_data.num_satellites = message.fields.num_satellites;
     if (message.fields.fix_type == FIX_3D) {
-        gps_data.longitude = message.fields.longitude * 10^-7; // undo chip scaling by 1e-7 to get degrees
-        gps_data.latitude = message.fields.latitude * 10^-7; // undo chip scaling by 1e-7 to get degrees
-        gps_data.height = message.fields.sealevel_height * 10^-3; // convert mm to m
+        gps_data.longitude = (float) message.fields.longitude / (10000000.0f); // undo chip scaling by 1e-7 to get degrees
+        gps_data.latitude = (float) message.fields.latitude / (10000000.0f); // undo chip scaling by 1e-7 to get degrees
+        gps_data.height = (float) message.fields.sealevel_height / (1000.0f); // convert mm to m
     }
 
     return (GPS_FIX_TYPE_t) message.fields.fix_type;
@@ -108,11 +117,14 @@ bool Cutdown_GPS::verify_ack(void)
     if (!get_sync_bytes(start_time)) return false;
 
     // read the message
-    while ((bytes_read < sizeof(UBX_ACK_NAK_t)) && (millis() - start_time < ACK_TIMEOUT)) {
+    while ((bytes_read < sizeof(UBX_ACK_NAK_t)) && (millis() - start_time < GPS_MSG_TIMEOUT)) {
         if (GPS_Serial.available()) {
             message.buffer[bytes_read++] = GPS_Serial.read();
         }
     }
+
+    // ensure we haven't timed out
+    if (bytes_read != sizeof(UBX_ACK_NAK_t)) return false;
 
     // get and verify the checksum
     if (!verify_checksum(start_time, message.buffer, sizeof(message))) return false;
@@ -120,6 +132,7 @@ bool Cutdown_GPS::verify_ack(void)
     // verify the ack
     if (message.fields.msg_class != ACK_NAK_CLASS) return false;
     if (message.fields.msg_id != ACK_ID) return false;
+    if (message.fields.msg_length != sizeof(UBX_ACK_NAK_t) - 4) return false;
     return true;
 }
 
@@ -153,7 +166,7 @@ bool Cutdown_GPS::get_sync_bytes(unsigned long start_time)
     uint8_t temp_byte = 0;
 
     // wait for the first sync byte
-    while ((temp_byte != SYNC1) && (millis() - start_time < ACK_TIMEOUT)) {
+    while ((temp_byte != SYNC1) && (millis() - start_time < GPS_MSG_TIMEOUT)) {
         if (GPS_Serial.available()) {
             temp_byte = GPS_Serial.read();
         }
@@ -162,7 +175,7 @@ bool Cutdown_GPS::get_sync_bytes(unsigned long start_time)
     if (temp_byte != SYNC1) return false; // timeout
 
     // ensure the second sync byte
-    while (millis() - start_time < ACK_TIMEOUT) {
+    while (millis() - start_time < GPS_MSG_TIMEOUT) {
         if (GPS_Serial.available()) {
             temp_byte = GPS_Serial.read();
             break;
@@ -177,7 +190,7 @@ bool Cutdown_GPS::get_check_bytes(unsigned long start_time, uint8_t * cka, uint8
     bool byte_received = false;
     
     // get the first checksum byte
-    while (millis() - start_time < ACK_TIMEOUT) {
+    while (millis() - start_time < GPS_MSG_TIMEOUT) {
         if (GPS_Serial.available()) {
             *cka = GPS_Serial.read();
             byte_received = true;
@@ -189,7 +202,7 @@ bool Cutdown_GPS::get_check_bytes(unsigned long start_time, uint8_t * cka, uint8
 
     // get the second checksum byte
     byte_received = false;
-    while (millis() - start_time < ACK_TIMEOUT) {
+    while (millis() - start_time < GPS_MSG_TIMEOUT) {
         if (GPS_Serial.available()) {
             *ckb = GPS_Serial.read();
             byte_received = true;

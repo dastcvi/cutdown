@@ -31,7 +31,11 @@ class ADC_Channel {
 public:
     ADC_Channel(float last, float divide, uint8_t pin);
 
+    // read the channel and return the calculated result
     float read(void);
+
+    // check the last voltage without forcing a new read
+    float check(void);
 
     float last_voltage;
     float divider;
