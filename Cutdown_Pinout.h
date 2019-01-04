@@ -22,7 +22,8 @@
 #define SQUIB2_GATE      5  /* PA15 */
 #define BUZZER           11 /* PA16 */
 #define POWER_OFF        20 /* PA22 */
-#define HEATER_GATE      27 /* PA28 */
+//#define HEATER_GATE      27 /* PA28 */ Note: this pin is used by the bootloader
+#define HEATER_GATE	     21 /* PA23, supposed to be Radio_GPIO2, RevA white-wire */
 #define SYSTEM_ARM       30 /* PB22 */
 #define SQUIB_FIRED      31 /* PB23 */
 

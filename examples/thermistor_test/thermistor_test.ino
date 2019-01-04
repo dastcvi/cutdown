@@ -6,10 +6,15 @@
 
 Cutdown_OLED oled;
 Cutdown_ADC adc;
+bool gate_status = false;
 
 void setup() {
   adc.init();
   oled.init();
+
+  pinMode(HEATER_GATE, OUTPUT);
+  digitalWrite(HEATER_GATE, LOW);
+  
   delay(1000);
 }
 
@@ -35,6 +40,15 @@ void loop() {
     Serial.println("LOW BATTERY!");
     oled.write_line("Low battery", LINE1);
     oled.write_line("Low battery", LINE2);
+  }
+
+  // just to verify GPIO
+  if (gate_status) {
+    digitalWrite(HEATER_GATE, LOW);
+    gate_status = false;
+  } else {
+    digitalWrite(HEATER_GATE, HIGH);
+    gate_status = true;
   }
 
   delay(1000);
