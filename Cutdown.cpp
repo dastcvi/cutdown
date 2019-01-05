@@ -8,6 +8,56 @@
 
 #include "Cutdown.h"
 #include "Cutdown_Configure.h"
+#include "Adafruit_ZeroTimer.h"
+
+Adafruit_ZeroTimer timer3 = Adafruit_ZeroTimer(3);
+static uint8_t timer_seconds = 0;
+
+// vector the timer ISR to the Adafruit_ZeroTimer
+void TC3_Handler()
+{
+    Adafruit_ZeroTimer::timerHandler(3);
+}
+
+// ISR for the timer
+static void t3_isr(void)
+{
+    __disable_irq();
+    timer_seconds++;
+    __enable_irq();
+}
+
+// waits until >= check_value seconds have passed, returns the seconds, otherwise 0
+static uint8_t wait_timer(uint8_t check_value)
+{
+    uint8_t ret_value = 0;
+    
+    while (ret_value == 0) {
+        __disable_irq();
+        if (timer_seconds >= check_value) {
+            ret_value = timer_seconds;
+            timer_seconds = 0;
+        }
+        __enable_irq();
+        
+        delay(1); // no spamming the critical section
+    }
+
+    return ret_value;
+}
+
+// initialize timer for 1 Hz operation
+static void timer_init(void)
+{
+    timer3.configure(TC_CLOCK_PRESCALER_DIV1024,
+                     TC_COUNTER_SIZE_16BIT,
+                     TC_WAVE_GENERATION_MATCH_PWM // interrupt on match
+                     );
+
+    timer3.setPeriodMatch(46875, 46875, 0); // 48 MHz / 1024 / 46875 = 1 Hz
+    timer3.setCallback(true, TC_CALLBACK_CC_CHANNEL0, t3_isr);
+    timer3.enable(true);
+}
 
 Cutdown::Cutdown() :
     oled()
@@ -22,9 +72,11 @@ void Cutdown::init(void)
     cutdown_pinmux();
     oled.init();
     attiny.init();
+    adc.init();
     config_init();
+    timer_init();
 
-    delay(1000);
+    wait_timer(1);
 }
 
 /* called in arduino loop() */
@@ -51,7 +103,7 @@ void Cutdown::unarmed(void)
         oled.clear();
         oled.write_line("Cutdown", LINE1);
         oled.write_line("Unarmed", LINE2);
-        delay(500);
+        wait_timer(1);
     }
 
     state = ST_ARMED;
@@ -74,13 +126,13 @@ void Cutdown::armed(void)
     oled.write_line(line1, LINE1);
     oled.write_line(line2, LINE2);
 
-    delay(2000);
+    wait_timer(2);
 
     oled.clear();
     oled.write_line("System", LINE1);
     oled.write_line("Armed", LINE2);
 
-    delay(2000);
+    wait_timer(2);
     
     attiny.arm();
 
@@ -91,13 +143,14 @@ void Cutdown::armed(void)
             return;
         }
 
-        sprintf(line2, "%d s", cutdown_timer--);
+        sprintf(line2, "%d s", cutdown_timer);
 
         oled.clear();
         oled.write_line("Time remaining", LINE1);
         oled.write_line(line2, LINE2);
         
-        delay(990); // todo: replace with timer interrupts
+        // wait for 1 second, but count all that pass in case the loop was slow
+        cutdown_timer -= wait_timer(1);
     }
 
     state = ST_FIRE;
@@ -119,10 +172,24 @@ void Cutdown::fire(void)
     digitalWrite(SQUIB_FIRED, HIGH);
 #endif
 
+    delay(1000);
+
+    oled.clear();
+    oled.write_line("Fired", LINE1);
     state = ST_FINISHED;
 }
 
 void Cutdown::finished(void)
 {
-    while (1); // todo: add vmon of batteries
+    // battery safety
+    if (adc.v_batt1.read() < 11.1 || adc.v_batt2.read() < 11.1) {
+        if (adc.v_batt1.check() < 10.8 || adc.v_batt2.check() < 10.8) {
+            cutdown_poweroff();
+        }
+
+    oled.clear();
+    oled.write_line("Low battery", LINE1);
+    }
+
+    wait_timer(5);
 }

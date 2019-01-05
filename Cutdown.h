@@ -12,6 +12,7 @@
 #include "Cutdown_Pinout.h"
 #include "Cutdown_OLED.h"
 #include "Cutdown_ATtiny.h"
+#include "Cutdown_ADC.h"
 
 #define DEFAULT_TIMER	        15
 #define DEFAULT_BACKUP_TIMER	20
@@ -61,6 +62,7 @@ private:
     // Driver instances
     Cutdown_OLED oled;
     Cutdown_ATtiny attiny;
+    Cutdown_ADC adc;
 };
 
 #endif
