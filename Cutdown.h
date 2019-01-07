@@ -57,7 +57,7 @@ private:
 	};
 
     // Timer value
-    uint16_t cutdown_timer;
+    int32_t cutdown_timer;
 
     // Driver instances
     Cutdown_OLED oled;

@@ -59,6 +59,21 @@ static void timer_init(void)
     timer3.enable(true);
 }
 
+// print the time in h/m/s format for the oled
+static void print_time(char display_buffer[17], uint16_t timer_seconds)
+{
+    uint8_t display_seconds = 0;
+    uint8_t display_minutes = 0;
+    uint8_t display_hours = 0;
+
+    display_seconds = timer_seconds % 60;
+    timer_seconds /= 60; // get minutes
+    display_minutes = timer_seconds % 60;
+    display_hours = timer_seconds / 60;
+
+    snprintf(display_buffer, 17, "%uh %um %us", display_hours, display_minutes, display_seconds);
+}
+
 Cutdown::Cutdown() :
     oled()
 {
@@ -66,7 +81,7 @@ Cutdown::Cutdown() :
     cutdown_timer = DEFAULT_TIMER;
 }
 
-/* called in arduino setup() */
+// called in arduino setup()
 void Cutdown::init(void)
 {
     cutdown_pinmux();
@@ -76,6 +91,7 @@ void Cutdown::init(void)
     config_init();
     timer_init();
 
+    // allows a small wait, and aligns timing
     wait_timer(1);
 }
 
@@ -99,7 +115,7 @@ void Cutdown::unarmed(void)
 
     while (digitalRead(SYSTEM_ARM) == LOW) {
         config_update();
-        oled.init(); // workaround, serial for configuring kills the OLED
+        oled.init(); // revA workaround, serial for configuring kills the OLED
         oled.clear();
         oled.write_line("Cutdown", LINE1);
         oled.write_line("Unarmed", LINE2);
@@ -112,14 +128,14 @@ void Cutdown::unarmed(void)
 void Cutdown::armed(void)
 {
     cutdown_timer = cutdown_config.primary_timer;
-    char line1[16] = "";
-    char line2[16] = "";
+    char line1[17] = "";
+    char line2[17] = "";
 
-    sprintf(line1, "Backup timer:");
+    snprintf(line1, 17, "Backup timer:");
     if (attiny.write_timer(cutdown_config.backup_timer)) {
-        sprintf(line2, "%u s", cutdown_config.backup_timer);
+        print_time(line2, cutdown_config.backup_timer);
     } else {
-        sprintf(line2, "FAILED TO SET");
+        snprintf(line2, 17, "FAILED TO SET");
     }
 
     oled.clear();
@@ -133,8 +149,8 @@ void Cutdown::armed(void)
     oled.write_line("Armed", LINE2);
 
     wait_timer(2);
-    
-    attiny.arm();
+
+    attiny.arm(); // revA workaround, will be replaced in hardware
 
     while (cutdown_timer > 0)
     {
@@ -143,7 +159,7 @@ void Cutdown::armed(void)
             return;
         }
 
-        sprintf(line2, "%d s", cutdown_timer);
+        print_time(line2, (uint16_t) cutdown_timer);
 
         oled.clear();
         oled.write_line("Time remaining", LINE1);
