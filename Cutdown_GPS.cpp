@@ -95,7 +95,8 @@ GPS_FIX_TYPE_t Cutdown_GPS::update_fix(void)
     if (message.fields.fix_type == FIX_3D) {
         gps_data.longitude = (float) message.fields.longitude / (10000000.0f); // undo chip scaling by 1e-7 to get degrees
         gps_data.latitude = (float) message.fields.latitude / (10000000.0f); // undo chip scaling by 1e-7 to get degrees
-        gps_data.height = (float) message.fields.sealevel_height / (1000.0f); // convert mm to m
+        gps_data.height = (float) message.fields.sealevel_height / (1000000.0f); // convert mm to km
+        gps_data.fix_type = FIX_3D;
     }
 
     return (GPS_FIX_TYPE_t) message.fields.fix_type;
@@ -104,20 +105,20 @@ GPS_FIX_TYPE_t Cutdown_GPS::update_fix(void)
 // use the Haversine formula to calculate the current distance from the given coords
 // based on: https://rosettacode.org/wiki/Haversine_formula#C
 // calculation time is ~1ms
-float Cutdown_GPS::distance_from(double th1, double ph1)
+float Cutdown_GPS::distance_from(double lat_origin, double long_origin)
 {
     double dx, dy, dz;
-    double th2 = gps_data.latitude;
-    double ph2 = gps_data.longitude;
+    double curr_lat = gps_data.latitude;
+    double curr_long = gps_data.longitude;
 
-    ph2 -= ph1;
-    ph2 *= TO_RAD;
-    th1 *= TO_RAD;
-    th2 *= TO_RAD;
+    curr_long -= long_origin;
+    curr_long *= TO_RAD;
+    lat_origin *= TO_RAD;
+    curr_lat *= TO_RAD;
 
-    dz = sin(th1) - sin(th2);
-    dx = cos(ph2) * cos(th1) - cos(th2);
-    dy = sin(ph2) * cos(th1);
+    dz = sin(lat_origin) - sin(curr_lat);
+    dx = cos(curr_long) * cos(lat_origin) - cos(curr_lat);
+    dy = sin(curr_long) * cos(lat_origin);
 
     return (float) (asin(sqrt(dx*dx + dy*dy + dz*dz) / 2) * 2 * R_EARTH);
 }

@@ -21,10 +21,15 @@ static char value_buffer[8] = "";
 
 void config_init(void)
 {
+    // todo: read from EEPROM
     cutdown_config.primary_timer = DEFAULT_TIMER;
     cutdown_config.backup_timer = DEFAULT_BACKUP_TIMER;
+    cutdown_config.trigger_height = DEFAULT_HEIGHT;
+    cutdown_config.trigger_distance = DEFAULT_DISTANCE;
     cutdown_config.critical_batt_voltage = DEFAULT_CRITICAL_VOLT;
     cutdown_config.low_batt_voltage = DEFAULT_LOW_VOLT;
+    cutdown_config.origin_lat = 0.0f;
+    cutdown_config.origin_long = 0.0f;
 }
 
 void config_update(void)
@@ -93,7 +98,7 @@ static void process_command(void)
         if ((int_value = parse_int()) <= 0) return;
 
         cutdown_config.primary_timer = (uint16_t) int_value;
-        Serial.print("Set primary timer: ");
+        Serial.print("Set primary timer (s): ");
         Serial.println(cutdown_config.primary_timer);
         return;
     }
@@ -102,8 +107,26 @@ static void process_command(void)
         if ((int_value = parse_int()) <= 0) return;
 
         cutdown_config.backup_timer = (uint16_t) int_value;
-        Serial.print("Set backup timer: ");
+        Serial.print("Set backup timer (s): ");
         Serial.println(cutdown_config.backup_timer);
+        return;
+    }
+
+    if (0 == (strcmp(command_buffer, TRIGGER_HEIGHT))) {
+        if ((float_value = parse_float()) <= 0.0f) return;
+
+        cutdown_config.trigger_height = float_value;
+        Serial.print("Set trigger height (km): ");
+        Serial.println(cutdown_config.trigger_height);
+        return;
+    }
+
+    if (0 == (strcmp(command_buffer, TRIGGER_DISTANCE))) {
+        if ((float_value = parse_float()) <= 0.0f) return;
+
+        cutdown_config.trigger_distance = float_value;
+        Serial.print("Set trigger distance (km): ");
+        Serial.println(cutdown_config.trigger_distance);
         return;
     }
 
@@ -111,7 +134,7 @@ static void process_command(void)
         if ((float_value = parse_float()) <= 0.0f) return;
 
         cutdown_config.critical_batt_voltage = float_value;
-        Serial.print("Set critical battery voltage: ");
+        Serial.print("Set critical battery voltage (V): ");
         Serial.println(cutdown_config.critical_batt_voltage);
         return;
     }
@@ -120,7 +143,7 @@ static void process_command(void)
         if ((float_value = parse_float()) <= 0.0f) return;
 
         cutdown_config.low_batt_voltage = float_value;
-        Serial.print("Set low battery voltage: ");
+        Serial.print("Set low battery voltage (V): ");
         Serial.println(cutdown_config.low_batt_voltage);
         return;
     }

@@ -13,16 +13,17 @@
 #include "Cutdown_OLED.h"
 #include "Cutdown_ATtiny.h"
 #include "Cutdown_ADC.h"
+#include "Cutdown_GPS.h"
 
-#define DEFAULT_TIMER	        15
-#define DEFAULT_BACKUP_TIMER	20
+#define GPS_WAIT_TIME   300 // s (5 min)
 
 // uncomment if the backup timer should fire regardless of the primary
-#define DEMO_BACKUP_TIMER
+//#define DEMO_BACKUP_TIMER
 
 // indexes for state array (must be in same order as in array!)
 typedef enum {
     ST_UNARMED = 0,
+    ST_GPSWAIT,
     ST_ARMED,
     ST_FIRE,
     ST_FINISHED,
@@ -41,6 +42,7 @@ public:
 private:
     // State functions
     void unarmed(void);
+    void gps_wait(void);
     void armed(void);
     void fire(void);
     void finished(void);
@@ -51,6 +53,7 @@ private:
     // State array (items must be in same order as in State_t enum!)
     void (Cutdown::*state_array[NUM_STATES])(void) = {
 		&Cutdown::unarmed,
+        &Cutdown::gps_wait,
 		&Cutdown::armed,
 		&Cutdown::fire,
 		&Cutdown::finished
@@ -63,6 +66,7 @@ private:
     Cutdown_OLED oled;
     Cutdown_ATtiny attiny;
     Cutdown_ADC adc;
+    Cutdown_GPS gps;
 };
 
 #endif

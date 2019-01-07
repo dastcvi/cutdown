@@ -89,11 +89,12 @@ void Cutdown::init(void)
     oled.init();
     attiny.init();
     adc.init();
+    gps.init();
     config_init();
     timer_init();
 
     // allows a small wait, and aligns timing
-    wait_timer(1);
+    wait_timer(2);
 }
 
 /* called in arduino loop() */
@@ -111,26 +112,70 @@ void Cutdown::unarmed(void)
     attiny.disarm();
 
     oled.clear();
-    oled.write_line("Cutdown", LINE1);
-    oled.write_line("Unarmed", LINE2);
+    oled.write_line("SYSTEM UNARMED", LINE1);
 
     while (digitalRead(SYSTEM_ARM) == LOW) {
         config_update();
         
         oled.init(); // revA workaround, serial for configuring kills the OLED
         oled.clear();
-        oled.write_line("Cutdown", LINE1);
-        oled.write_line("Unarmed", LINE2);
+        oled.write_line("SYSTEM UNARMED", LINE1);
 
         if (!check_batteries(&adc)) {
-            oled.clear();
-            oled.write_line("Low Battery!", LINE1);
+            oled.write_line("!Low Battery!", LINE2);
         }
 
         wait_timer(2);
     }
 
-    state = ST_ARMED;
+    state = ST_GPSWAIT;
+}
+
+void Cutdown::gps_wait(void)
+{
+    uint16_t seconds_waiting = 0;
+    char line2[17] = "";
+
+    oled.clear();
+    oled.write_line("Waiting on GPS", LINE1);
+
+    if (!gps.stop_nmea()) {
+        oled.write_line("GPS Config Error", LINE2);
+        wait_timer(5);
+        state = ST_UNARMED;
+        return;
+    }
+
+    // wait for a fix for up to five minutes
+    while (FIX_3D != gps.update_fix() && seconds_waiting < GPS_WAIT_TIME) {
+        snprintf(line2, 17, "Num sats: %d", gps.gps_data.num_satellites);
+        oled.write_line(line2, LINE2);
+
+        // ensure no low batteries
+        if (!check_batteries(&adc)) {
+            oled.write_line("!Low Battery!", LINE2);
+        }
+
+        // ensure still armed
+        if (digitalRead(SYSTEM_ARM) == LOW) {
+            state = ST_UNARMED;
+            return;
+        }
+
+        seconds_waiting += wait_timer(2);
+    }
+
+    if (gps.gps_data.fix_type == FIX_3D) {
+        cutdown_config.origin_lat = gps.gps_data.latitude;
+        cutdown_config.origin_long = gps.gps_data.longitude;
+        state = ST_ARMED;
+    } else {
+        oled.clear();
+        oled.write_line("GPS Timeout", LINE1);
+        oled.write_line("No Fix Found", LINE2);
+        wait_timer(5);
+        state = ST_UNARMED;
+    }
 }
 
 void Cutdown::armed(void)
@@ -138,6 +183,7 @@ void Cutdown::armed(void)
     cutdown_timer = cutdown_config.primary_timer;
     char line1[17] = "";
     char line2[17] = "";
+    uint8_t loop_counter = 0;
 
     snprintf(line1, 17, "Backup timer:");
     if (attiny.write_timer(cutdown_config.backup_timer)) {

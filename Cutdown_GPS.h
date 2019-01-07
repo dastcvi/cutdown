@@ -30,8 +30,9 @@
 typedef struct {
     float longitude; // degrees
     float latitude;  // degrees
-    float height;    // meters
+    float height;    // kilometers
     uint8_t num_satellites;
+    GPS_FIX_TYPE_t fix_type;
 } GPS_Data_t;
 
 class Cutdown_GPS {

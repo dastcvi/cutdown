@@ -10,24 +10,32 @@
 
 #define Serial SERIAL_PORT_USBVIRTUAL
 
-#define DEFAULT_TIMER	        15
-#define DEFAULT_BACKUP_TIMER    20
-#define DEFAULT_CRITICAL_VOLT   10.8
-#define DEFAULT_LOW_VOLT        11.1
+#define DEFAULT_TIMER	        5400  // s (1.50 hours)
+#define DEFAULT_BACKUP_TIMER    6300  // s (1.75 hours)
+#define DEFAULT_HEIGHT          30.0  // km
+#define DEFAULT_DISTANCE        100.0 // km
+#define DEFAULT_CRITICAL_VOLT   10.8  // V
+#define DEFAULT_LOW_VOLT        11.1  // V
 
 #include <stdint.h>
 
 // commands (all of form "cmd,value\n" in ASCII)
 #define PRIMARY_TIMER    "TPRI"
 #define BACKUP_TIMER     "TBCK"
+#define TRIGGER_HEIGHT   "HEIGHT"
+#define TRIGGER_DISTANCE "DIST"
 #define CRITICAL_VOLT    "VCRIT"
 #define LOW_VOLT         "VLOW"
 
 typedef struct {
     uint16_t primary_timer;
     uint16_t backup_timer;
+    float trigger_height;
+    float trigger_distance;
     float critical_batt_voltage;
     float low_batt_voltage;
+    float origin_lat;
+    float origin_long;
 } Cutdown_Configuration_t;
 
 extern Cutdown_Configuration_t cutdown_config;
