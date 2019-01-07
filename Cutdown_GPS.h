@@ -24,6 +24,9 @@
 #define SYNC1               0xB5
 #define SYNC2               0x62
 
+#define R_EARTH (6371.0)
+#define TO_RAD  (3.1415926536 / 180.0)
+
 typedef struct {
     float longitude; // degrees
     float latitude;  // degrees
@@ -45,8 +48,8 @@ public:
     // but will still update num_satellites regardless)
     GPS_FIX_TYPE_t update_fix(void);
 
-    bool set_reference(void);
-    float get_distance(void);
+    // use the Haversine formula to calculate the current distance from the given coords
+    float distance_from(double lat_origin, double long_origin);
 
     GPS_Data_t gps_data = {0};
 private:

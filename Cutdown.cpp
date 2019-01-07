@@ -127,7 +127,7 @@ void Cutdown::unarmed(void)
             oled.write_line("Low Battery!", LINE1);
         }
 
-        wait_timer(1);
+        wait_timer(2);
     }
 
     state = ST_ARMED;

@@ -11,6 +11,7 @@
  */
 
 #include "Cutdown_GPS.h"
+#include <math.h>
 
 Uart GPS_Serial(GPS_SERCOM, GPS_RX, GPS_TX, GPS_RX_PAD, GPS_TX_PAD);
 
@@ -98,6 +99,27 @@ GPS_FIX_TYPE_t Cutdown_GPS::update_fix(void)
     }
 
     return (GPS_FIX_TYPE_t) message.fields.fix_type;
+}
+
+// use the Haversine formula to calculate the current distance from the given coords
+// based on: https://rosettacode.org/wiki/Haversine_formula#C
+// calculation time is ~1ms
+float Cutdown_GPS::distance_from(double th1, double ph1)
+{
+    double dx, dy, dz;
+    double th2 = gps_data.latitude;
+    double ph2 = gps_data.longitude;
+
+    ph2 -= ph1;
+    ph2 *= TO_RAD;
+    th1 *= TO_RAD;
+    th2 *= TO_RAD;
+
+    dz = sin(th1) - sin(th2);
+    dx = cos(ph2) * cos(th1) - cos(th2);
+    dy = sin(ph2) * cos(th1);
+
+    return (float) (asin(sqrt(dx*dx + dy*dy + dz*dz) / 2) * 2 * R_EARTH);
 }
 
 void Cutdown_GPS::transmit_ubx(uint8_t * buffer, uint16_t length)
