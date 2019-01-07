@@ -9,6 +9,7 @@
 #include "Cutdown.h"
 #include "Cutdown_Configure.h"
 #include "Adafruit_ZeroTimer.h"
+#include "Cutdown_Monitor.h"
 
 Adafruit_ZeroTimer timer3 = Adafruit_ZeroTimer(3);
 static uint8_t timer_seconds = 0;
@@ -115,10 +116,17 @@ void Cutdown::unarmed(void)
 
     while (digitalRead(SYSTEM_ARM) == LOW) {
         config_update();
+        
         oled.init(); // revA workaround, serial for configuring kills the OLED
         oled.clear();
         oled.write_line("Cutdown", LINE1);
         oled.write_line("Unarmed", LINE2);
+
+        if (!check_batteries(&adc)) {
+            oled.clear();
+            oled.write_line("Low Battery!", LINE1);
+        }
+
         wait_timer(1);
     }
 
