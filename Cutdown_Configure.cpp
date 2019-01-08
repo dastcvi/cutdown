@@ -28,8 +28,8 @@ void config_init(void)
     cutdown_config.trigger_distance = DEFAULT_DISTANCE;
     cutdown_config.critical_batt_voltage = DEFAULT_CRITICAL_VOLT;
     cutdown_config.low_batt_voltage = DEFAULT_LOW_VOLT;
-    cutdown_config.origin_lat = 0.0f;
-    cutdown_config.origin_long = 0.0f;
+    cutdown_config.origin_lat = SPSC_LATITUDE;
+    cutdown_config.origin_long = SPSC_LONGITUDE;
 }
 
 void config_update(void)

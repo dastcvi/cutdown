@@ -29,6 +29,13 @@ void SERCOM1_Handler()
   GPS_Serial.IrqHandler();
 }
 
+Cutdown_GPS::Cutdown_GPS(void)
+{
+    gps_data.height = GPS_INVALID_FLOAT;
+    gps_data.displacement = GPS_INVALID_FLOAT;
+    gps_data.sol_time = GPS_NO_SOLUTION;
+}
+
 void Cutdown_GPS::init(void)
 {
     GPS_Serial.begin(9600);
@@ -97,6 +104,7 @@ GPS_FIX_TYPE_t Cutdown_GPS::update_fix(void)
         gps_data.latitude = (float) message.fields.latitude / (10000000.0f); // undo chip scaling by 1e-7 to get degrees
         gps_data.height = (float) message.fields.sealevel_height / (1000000.0f); // convert mm to km
         gps_data.fix_type = FIX_3D;
+        gps_data.sol_time = millis();
     }
 
     return (GPS_FIX_TYPE_t) message.fields.fix_type;

@@ -16,8 +16,12 @@
 char * oled_messages[OI_NUM_INFO] = 
     {"Primary timer",
      "Backup timer",
-     "Horizontal dist",
-     "Height",
+     "Squib status",
+     "GPS solution age",
+     "Distance trigger",
+     "Current distance",
+     "Height trigger",
+     "Current height",
      "Battery 1",
      "Battery 2",
      "Temperature"};
@@ -105,6 +109,7 @@ Cutdown::Cutdown()
 {
     state = ST_UNARMED;
     cutdown_timer = DEFAULT_TIMER;
+    reboot_detected = false;
 }
 
 
@@ -118,6 +123,12 @@ void Cutdown::init(void)
     gps.init();
     config_init();
     timer_init();
+
+    // if the arm signal is already high, assume unplanned reboot
+    if (arm_signal()) {
+        state = ST_GPSWAIT; // skip unarmed
+        reboot_detected = true;
+    }
 
     // allows a small wait, and aligns timing
     wait_timer(2);
@@ -137,12 +148,15 @@ void Cutdown::run(void)
 
 void Cutdown::unarmed(void)
 {
-    attiny.disarm();
+    // can come here after reboot if GPS fails to lock
+    if (!reboot_detected) {
+        attiny.disarm();
+    }
 
     oled.clear();
     oled.write_line("SYSTEM UNARMED", LINE1);
 
-    while (digitalRead(SYSTEM_ARM) == LOW) {
+    while (!arm_signal()) {
         config_update();
         
         oled.init(); // revA workaround, serial for configuring kills the OLED
@@ -189,15 +203,18 @@ void Cutdown::gps_wait(void)
         seconds_waiting += wait_timer(2);
 
         // ensure still armed before moving on
-        if (digitalRead(SYSTEM_ARM) == LOW) {
+        if (!arm_signal()) {
+            reboot_detected = false; // user reset
             state = ST_UNARMED;
             return;
         }
     }
 
     if (gps.gps_data.fix_type == FIX_3D) {
-        cutdown_config.origin_lat = gps.gps_data.latitude;
-        cutdown_config.origin_long = gps.gps_data.longitude;
+        if (!reboot_detected) {
+            cutdown_config.origin_lat = gps.gps_data.latitude;
+            cutdown_config.origin_long = gps.gps_data.longitude;
+        }
         state = ST_ARMED;
     } else {
         oled.clear();
@@ -216,25 +233,28 @@ void Cutdown::armed(void)
     uint8_t loop_counter = 0;
     bool trigger_met = false;
 
-    // load the timer with the configured value
-    cutdown_timer = cutdown_config.primary_timer;
+    // set the backup timer if this is the initial arming
+    if (!reboot_detected) {
+        // load the timer with the configured value
+        cutdown_timer = cutdown_config.primary_timer;
 
-    // load and verify the backup timer with the configured value
-    if (!attiny.write_timer(cutdown_config.backup_timer)) {
+        // load and verify the backup timer with the configured value
+        if (!attiny.write_timer(cutdown_config.backup_timer)) {
+            oled.clear();
+            oled.write_line("Backup timer", LINE1);
+            oled.write_line("Failed to set", LINE2);
+            wait_timer(5);
+            state = ST_UNARMED;
+            return;
+        }
+
         oled.clear();
-        oled.write_line("Backup timer", LINE1);
-        oled.write_line("Failed to set", LINE2);
-        wait_timer(5);
-        state = ST_UNARMED;
-        return;
+        oled.write_line("System", LINE1);
+        oled.write_line("Armed", LINE2);
+        wait_timer(2);
+
+        attiny.arm(); // revA workaround, will be replaced in hardware
     }
-
-    oled.clear();
-    oled.write_line("System", LINE1);
-    oled.write_line("Armed", LINE2);
-    wait_timer(2);
-
-    attiny.arm(); // revA workaround, will be replaced in hardware
 
     while (!trigger_met)
     {
@@ -260,7 +280,8 @@ void Cutdown::armed(void)
             if (cutdown_timer <= 0) trigger_met = true;
 
             // ensure still armed before moving on
-            if (digitalRead(SYSTEM_ARM) == LOW) {
+            if (!arm_signal()) {
+                reboot_detected = false; // user reset
                 state = ST_UNARMED;
                 return;
             }
@@ -274,23 +295,56 @@ void Cutdown::armed(void)
 void Cutdown::fire(void)
 {
     oled.clear();
-    oled.write_line("Firing 1", LINE1);
+    oled.write_line("Trigger Reached!", LINE1);
+    wait_timer(1);
 
-    digitalWrite(SQUIB1_GATE, HIGH);
+    oled.write_line("Firing: 5", LINE2);
+    wait_timer(1);
+    oled.write_line("Firing: 4", LINE2);
+    wait_timer(1);
+    oled.write_line("Firing: 3", LINE2);
+    wait_timer(1);
+    oled.write_line("Firing: 2", LINE2);
+    wait_timer(1);
+    oled.write_line("Firing: 1", LINE2);
+    wait_timer(1);
+
+    digitalWrite(SQUIB2_GATE, HIGH);
     delay(1000); // should only need a few ms
-    digitalWrite(SQUIB1_GATE, LOW);
+    digitalWrite(SQUIB2_GATE, LOW);
 
-    oled.write_line("Fired 1", LINE2);
+    // if that didn't work, try again
+    if (check_squib(adc.squib2.read())) {
+        oled.write_line("Squib failed", LINE2);
+        delay(1000);
+
+        digitalWrite(SQUIB2_GATE, HIGH);
+        delay(1000); // should only need a few ms
+        digitalWrite(SQUIB2_GATE, LOW);
+
+        // if that didn't work, fire the backup
+        if (check_squib(adc.squib2.read())) {
+            oled.write_line("Firing backup", LINE2);
+            delay(1000);
+
+            digitalWrite(SQUIB1_GATE, HIGH);
+            delay(1000); // should only need a few ms
+            digitalWrite(SQUIB1_GATE, LOW);
+
+            oled.write_line("Fired backup ", LINE2);
+        } else {
+            oled.write_line("Squib succeeded", LINE2);
+        }
+    } else {
+        oled.write_line("Squib succeeded", LINE2);
+    }
 
     // keep the backup MCU from firing another squib
 #ifndef DEMO_BACKUP_TIMER
     digitalWrite(SQUIB_FIRED, HIGH);
 #endif
 
-    delay(1000);
-
-    oled.clear();
-    oled.write_line("Fired", LINE1);
+    wait_timer(10);
     state = ST_FINISHED;
 }
 
@@ -303,16 +357,22 @@ void Cutdown::finished(void)
             cutdown_poweroff();
         }
 
-    oled.clear();
-    oled.write_line("Low battery", LINE1);
+        oled.clear();
+        oled.write_line("Low battery", LINE1);
     }
 
     wait_timer(5);
 }
 
 
+inline bool Cutdown::arm_signal(void)
+{
+    return (digitalRead(SYSTEM_ARM) == HIGH);
+}
+
+
 // returns false if low battery, powers the system down if both critical
-bool Cutdown::check_batteries()
+bool Cutdown::check_batteries(void)
 {
     float batt1 = adc.v_batt1.read();
     float batt2 = adc.v_batt2.read();
@@ -345,8 +405,12 @@ bool Cutdown::check_batteries()
 
 bool Cutdown::gps_trigger()
 {
-    // attempt to get a new reading
-    if (FIX_3D != gps.update_fix()) return false;
+    // only check the trigger with a valid, new 3-D fix
+    if (FIX_3D != gps.update_fix()) {
+        gps.gps_data.height = GPS_INVALID_FLOAT;
+        gps.gps_data.displacement = GPS_INVALID_FLOAT;
+        return false;
+    }
 
     // see if we've reached the height trigger
     if (gps.gps_data.height >= cutdown_config.trigger_height) return true;
@@ -382,15 +446,49 @@ void Cutdown::cycle_oled_info(bool cycle)
         print_time(line2, attiny.read_timer());
         oled.write_line(line2, LINE2);
         break;
+    case OI_SQUIB:
+        if (check_squib(adc.squib2.read())) {
+            oled.write_line("Squib OK", LINE2);
+        } else {
+            oled.write_line("!Error!", LINE2);
+        }
+        break;
+    case OI_LASTGPS:
+        if (gps.gps_data.sol_time == GPS_NO_SOLUTION) {
+            oled.write_line("No solution", LINE2);
+        } else {
+            line2_str = String((float) (millis() - gps.gps_data.sol_time) / 1000.0f);
+            line2_str += " s";
+            oled.write_line((char *) line2_str.c_str(), LINE2);
+        }
+        break;
+    case OI_SET_DISTANCE:
+        line2_str = String(cutdown_config.trigger_distance);
+        line2_str += " km";
+        oled.write_line((char *) line2_str.c_str(), LINE2);
+        break;
     case OI_DISTANCE:
-        line2_str = String(gps.gps_data.displacement);
+        if (gps.gps_data.displacement == GPS_INVALID_FLOAT) {
+            oled.write_line("No fix", LINE2);
+        } else {
+            line2_str = String(gps.gps_data.displacement);
+            line2_str += " km";
+            oled.write_line((char *) line2_str.c_str(), LINE2);
+        }
+        break;
+    case OI_SET_HEIGHT:
+        line2_str = String(cutdown_config.trigger_height);
         line2_str += " km";
         oled.write_line((char *) line2_str.c_str(), LINE2);
         break;
     case OI_HEIGHT:
-        line2_str = String(gps.gps_data.height);
-        line2_str += " km";
-        oled.write_line((char *) line2_str.c_str(), LINE2);
+        if (gps.gps_data.height == GPS_INVALID_FLOAT) {
+            oled.write_line("No fix", LINE2);
+        } else {
+            line2_str = String(gps.gps_data.height);
+            line2_str += " km";
+            oled.write_line((char *) line2_str.c_str(), LINE2);
+        }
         break;
     case OI_BATT1:
         line2_str = String(adc.v_batt1.check());

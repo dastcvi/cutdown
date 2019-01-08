@@ -15,7 +15,7 @@
 #include "Cutdown_ADC.h"
 #include "Cutdown_GPS.h"
 
-#define GPS_WAIT_TIME   300 // s (5 min)
+#define GPS_WAIT_TIME   180 // s (3 min)
 
 // uncomment if the backup timer should fire regardless of the primary
 //#define DEMO_BACKUP_TIMER
@@ -34,7 +34,11 @@ typedef enum {
 typedef enum : uint8_t {
     OI_TPRI = 0,
     OI_TBCK,
+    OI_SQUIB,
+    OI_LASTGPS,
+    OI_SET_DISTANCE,
     OI_DISTANCE,
+    OI_SET_HEIGHT,
     OI_HEIGHT,
     OI_BATT1,
     OI_BATT2,
@@ -74,6 +78,9 @@ private:
     // Timer value
     int32_t cutdown_timer;
 
+    // Global flag to avoid resetting the backup timer if a reboot is detected
+    bool reboot_detected;
+
     // Driver instances
     Cutdown_OLED oled;
     Cutdown_ATtiny attiny;
@@ -81,6 +88,7 @@ private:
     Cutdown_GPS gps;
 
     // Helper functions
+    inline bool arm_signal();
     bool check_batteries();
     bool gps_trigger();
     void cycle_oled_info(bool cycle);

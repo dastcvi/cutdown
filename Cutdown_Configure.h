@@ -16,6 +16,8 @@
 #define DEFAULT_DISTANCE        100.0 // km
 #define DEFAULT_CRITICAL_VOLT   10.8  // V
 #define DEFAULT_LOW_VOLT        11.1  // V
+#define SPSC_LATITUDE           40.011
+#define SPSC_LONGITUDE          -105.246
 
 #include <stdint.h>
 

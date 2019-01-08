@@ -19,6 +19,12 @@ float calculate_fahrenheit(float voltage)
     return ((voltage - THERM_OFFSET) * THERM_COEFFICIENT) * (1.8f) + 32;
 }
 
+// returns true if the squib is present and not fired (or shorted), false if not
+bool check_squib(float voltage)
+{
+    return (voltage < SQUIB_THRESHOLD);
+}
+
 // ADC_Channel methods ------------------------------------------
 ADC_Channel::ADC_Channel(float last, float divide, uint8_t pin)
 {

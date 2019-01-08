@@ -27,18 +27,22 @@
 #define R_EARTH (6371.0)
 #define TO_RAD  (3.1415926536 / 180.0)
 
+#define GPS_INVALID_FLOAT	(-1.0f)
+#define GPS_NO_SOLUTION     ((uint32_t) 0xffffffff)
+
 typedef struct {
     float longitude;    // degrees
     float latitude;     // degrees
     float height;       // kilometers
-    float displacement; // kilometers
+    float displacement; // kilometers (not updated with every solution!)
     uint8_t num_satellites;
+    uint32_t sol_time;  // ms since boot
     GPS_FIX_TYPE_t fix_type;
 } GPS_Data_t;
 
 class Cutdown_GPS {
 public:
-    Cutdown_GPS() { };
+    Cutdown_GPS();
     ~Cutdown_GPS() { };
 
     void init(void);

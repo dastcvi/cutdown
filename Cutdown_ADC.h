@@ -21,6 +21,9 @@
 #define REFERENCE_VOLTAGE	(2.23f)
 #define ADC_MAX	            (4095.0f)
 
+// General squib constants
+#define SQUIB_THRESHOLD     (1.32f)
+
 // Voltage dividers by channel
 #define THERM_DIVIDE    (1.0f)    // direct
 #define SQUIB1_DIVIDE   (1.0f)    // direct
@@ -36,6 +39,9 @@ float calculate_temperature(float voltage);
 
 // returns the temperature in fahrenheit given the MCP9700A thermistor voltage
 float calculate_fahrenheit(float voltage);
+
+// returns true if the squib is present and not fired (or shorted), false if not
+bool check_squib(float voltage);
 
 class ADC_Channel {
 public:
