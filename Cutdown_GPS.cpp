@@ -120,7 +120,9 @@ float Cutdown_GPS::distance_from(double lat_origin, double long_origin)
     dx = cos(curr_long) * cos(lat_origin) - cos(curr_lat);
     dy = sin(curr_long) * cos(lat_origin);
 
-    return (float) (asin(sqrt(dx*dx + dy*dy + dz*dz) / 2) * 2 * R_EARTH);
+    gps_data.displacement = (float) (asin(sqrt(dx*dx + dy*dy + dz*dz) / 2) * 2 * R_EARTH);
+
+    return gps_data.displacement;
 }
 
 void Cutdown_GPS::transmit_ubx(uint8_t * buffer, uint16_t length)

@@ -20,7 +20,7 @@
 // uncomment if the backup timer should fire regardless of the primary
 //#define DEMO_BACKUP_TIMER
 
-// indexes for state array (must be in same order as in array!)
+// indices for state array (must be in same order as in array!)
 typedef enum {
     ST_UNARMED = 0,
     ST_GPSWAIT,
@@ -29,6 +29,18 @@ typedef enum {
     ST_FINISHED,
     NUM_STATES
 } State_t;
+
+// indices for the different OLED information types
+typedef enum : uint8_t {
+    OI_TPRI = 0,
+    OI_TBCK,
+    OI_DISTANCE,
+    OI_HEIGHT,
+    OI_BATT1,
+    OI_BATT2,
+    OI_TEMP,
+    OI_NUM_INFO
+} OLED_Info_t;
 
 class Cutdown {
 public:
@@ -67,6 +79,11 @@ private:
     Cutdown_ATtiny attiny;
     Cutdown_ADC adc;
     Cutdown_GPS gps;
+
+    // Helper functions
+    bool check_batteries();
+    bool gps_trigger();
+    void cycle_oled_info(bool cycle);
 };
 
 #endif

@@ -28,9 +28,10 @@
 #define TO_RAD  (3.1415926536 / 180.0)
 
 typedef struct {
-    float longitude; // degrees
-    float latitude;  // degrees
-    float height;    // kilometers
+    float longitude;    // degrees
+    float latitude;     // degrees
+    float height;       // kilometers
+    float displacement; // kilometers
     uint8_t num_satellites;
     GPS_FIX_TYPE_t fix_type;
 } GPS_Data_t;
