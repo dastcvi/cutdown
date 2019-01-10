@@ -50,6 +50,9 @@ public:
     // turns off the default NMEA outputs
     bool stop_nmea(void);
 
+    // set to the airborne <2g mode
+    bool set_airborne(void);
+
     // attempts to update the GPS fix (will only update lat/long/height if 3D fix,
     // but will still update num_satellites regardless)
     GPS_FIX_TYPE_t update_fix(void);

@@ -19,6 +19,8 @@ void cutdown_pinmux(void)
     digitalWrite(SQUIB_FIRED, LOW);
     pinMode(POWER_OFF, OUTPUT);
     digitalWrite(POWER_OFF, LOW);
+    pinMode(HEATER_GATE, OUTPUT);
+    digitalWrite(HEATER_GATE, LOW);
 }
 
 void cutdown_poweroff(void)

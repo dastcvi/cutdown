@@ -6,6 +6,7 @@
  */
 
 #include "Cutdown_ADC.h"
+#include "Cutdown_Logger.h"
 
 // returns the temperature in celsius given the MCP9700A thermistor voltage
 float calculate_temperature(float voltage)
@@ -61,4 +62,20 @@ void Cutdown_ADC::init(void)
 {
     analogReference(AR_INTERNAL2V23); // internal 2.23V reference
     analogReadResolution(12); // 12-bit resolution
+}
+
+void Cutdown_ADC::thermal_control(void)
+{
+    static bool heating = false;
+    float temp = calculate_temperature(thermistor.read());
+
+    cutdown_log("temp ", temp);
+
+    if (TEMP_SETPOINT > temp && !heating) {
+        digitalWrite(HEATER_GATE, HIGH);
+        cutdown_log("Heater on");
+    } else if (TEMP_SETPOINT < temp && heating) {
+        digitalWrite(HEATER_GATE, LOW);
+        cutdown_log("Heater off");
+    }
 }

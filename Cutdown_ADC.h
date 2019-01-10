@@ -14,8 +14,9 @@
 #include <stdint.h>
 
 // MCP9700A thermistor constants
-#define THERM_OFFSET	    (0.5f)
-#define THERM_COEFFICIENT	(100.0f)
+#define THERM_OFFSET	    (0.58f)
+#define THERM_COEFFICIENT	(110.0f)
+#define TEMP_SETPOINT       (5.0f) // 5 C
 
 // General ADC constants
 #define REFERENCE_VOLTAGE	(2.23f)
@@ -63,6 +64,9 @@ public:
     Cutdown_ADC();
     ~Cutdown_ADC() { };
     void init(void);
+
+    // simple thermal control, should be called every 1-5s
+    void thermal_control(void);
 
     // Channels
     ADC_Channel thermistor;
