@@ -64,6 +64,7 @@ void Cutdown_ADC::init(void)
     analogReadResolution(12); // 12-bit resolution
 }
 
+// TODO: add hysteresis!
 void Cutdown_ADC::thermal_control(void)
 {
     static bool heating = false;
@@ -74,8 +75,10 @@ void Cutdown_ADC::thermal_control(void)
     if (TEMP_SETPOINT > temp && !heating) {
         digitalWrite(HEATER_GATE, HIGH);
         cutdown_log("Heater on");
+        heating = true;
     } else if (TEMP_SETPOINT < temp && heating) {
         digitalWrite(HEATER_GATE, LOW);
         cutdown_log("Heater off");
+        heating = false;
     }
 }
