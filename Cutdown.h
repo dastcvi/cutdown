@@ -9,7 +9,7 @@
 #ifndef CUTDOWN_H
 #define CUTDOWN_H
 
-#include "Cutdown_Pinout.h"
+#include "Cutdown_Pinout_RevA.h"
 #include "Cutdown_OLED.h"
 #include "Cutdown_ATtiny.h"
 #include "Cutdown_ADC.h"

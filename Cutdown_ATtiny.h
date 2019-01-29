@@ -8,7 +8,7 @@
 #ifndef CUTDOWN_ATTINY_H
 #define CUTDOWN_ATTINY_H
 
-#include "Cutdown_Pinout.h"
+#include "Cutdown_Pinout_RevA.h"
 #include "Arduino.h"
 #include "SERCOM.h"
 #include "SPI.h"

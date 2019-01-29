@@ -14,7 +14,7 @@
 #define CUTDOWN_GPS_H
 
 #include "Cutdown_GPS_Messages.h"
-#include "Cutdown_Pinout.h"
+#include "Cutdown_Pinout_RevA.h"
 #include "Arduino.h"
 #include "SERCOM.h"
 #include "wiring_private.h"

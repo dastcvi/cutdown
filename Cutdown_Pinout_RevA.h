@@ -20,9 +20,8 @@
 // GPIO
 #define SQUIB1_GATE      2  /* PA14 */
 #define SQUIB2_GATE      5  /* PA15 */
-#define BUZZER           11 /* PA16 */
+//#define BUZZER           11 /* PA16 */ (UNUSED REVA)
 #define POWER_OFF        20 /* PA22 */
-//#define HEATER_GATE      27 /* PA28 */ Note: this pin is used by the bootloader
 #define HEATER_GATE	     21 /* PA23, supposed to be Radio_GPIO2, RevA white-wire */
 #define SYSTEM_ARM       30 /* PB22 */
 #define SQUIB_FIRED      31 /* PB23 */
@@ -68,12 +67,12 @@
 #define ATTINY_MODE      (SPI_MODE3)
 #define ATTINY_ORDER     (MSBFIRST)
 
-// Barometric Altimeter
-#define BARO_SDA         22 /* PA12, 2.0 */
-#define BARO_SCL         38 /* PA13, 2.1 */
-#define BARO_SERCOM      (&sercom2)
-#define BARO_SDA_MUX     (PIO_SERCOM)
-#define BARO_SCL_MUX     (PIO_SERCOM)
+// Barometric Altimeter (UNUSED REVA)
+// #define BARO_SDA         22 /* PA12, 2.0 */
+// #define BARO_SCL         38 /* PA13, 2.1 */
+// #define BARO_SERCOM      (&sercom2)
+// #define BARO_SDA_MUX     (PIO_SERCOM)
+// #define BARO_SCL_MUX     (PIO_SERCOM)
 
 // GPS
 #define GPS_TX           13 /* PA17, 1.1 */

@@ -5,7 +5,7 @@
  * Implements the necessary cutdown pinmux
  */
 
-#include "Cutdown_Pinout.h"
+#include "Cutdown_Pinout_RevA.h"
 
 void cutdown_pinmux(void)
 {
@@ -15,8 +15,8 @@ void cutdown_pinmux(void)
     digitalWrite(SQUIB1_GATE, LOW);
     pinMode(SQUIB2_GATE, OUTPUT);
     digitalWrite(SQUIB2_GATE, LOW);
-    pinMode(SQUIB_FIRED, OUTPUT);
-    digitalWrite(SQUIB_FIRED, LOW);
+    pinMode(SQUIB_FIRED, OUTPUT);   // revA-specific
+    digitalWrite(SQUIB_FIRED, LOW); // revA-specific
     pinMode(POWER_OFF, OUTPUT);
     digitalWrite(POWER_OFF, LOW);
     pinMode(HEATER_GATE, OUTPUT);

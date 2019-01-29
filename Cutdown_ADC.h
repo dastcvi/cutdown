@@ -8,7 +8,7 @@
 #ifndef CUTDOWN_ADC_H
 #define CUTDOWN_ADC_H
 
-#include "Cutdown_Pinout.h"
+#include "Cutdown_Pinout_RevA.h"
 #include "Arduino.h"
 #include "wiring_private.h"
 #include <stdint.h>

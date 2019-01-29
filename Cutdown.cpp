@@ -154,7 +154,7 @@ void Cutdown::unarmed(void)
 {
     // can come here after reboot if GPS fails to lock
     if (!reboot_detected) {
-        attiny.disarm();
+        attiny.disarm(); // revA-specific
     }
 
     oled.clear();
@@ -167,9 +167,9 @@ void Cutdown::unarmed(void)
 
         config_update();
         
-        oled.init(); // revA workaround, serial for configuring kills the OLED
-        oled.clear();
-        oled.write_line("SYSTEM UNARMED", LINE1);
+        oled.init(); // revA-specific workaround, serial for configuring kills the OLED
+        oled.clear(); // revA-specific
+        oled.write_line("SYSTEM UNARMED", LINE1); // revA-specific
 
         if (!check_batteries()) {
             oled.write_line("!Low Battery!", LINE2);
@@ -282,7 +282,7 @@ void Cutdown::armed(void)
         cutdown_log("System armed");
         wait_timer(2);
 
-        attiny.arm(); // revA workaround, will be replaced in hardware
+        attiny.arm(); // revA-specific workaround, will be replaced in hardware
     }
 
     while (!trigger_met) {
@@ -383,7 +383,7 @@ void Cutdown::fire(void)
 
     // keep the backup MCU from firing another squib
 #ifndef DEMO_BACKUP_TIMER
-    digitalWrite(SQUIB_FIRED, HIGH);
+    digitalWrite(SQUIB_FIRED, HIGH);  // revA-specific
 #endif
 
     wait_timer(10);
