@@ -10,7 +10,7 @@
 
 #define Serial SERIAL_PORT_USBVIRTUAL
 
-#define DEFAULT_TIMER	        7200  // s (2 hours)
+#define DEFAULT_TIMER	        20  // s (2 hours)
 #define DEFAULT_BACKUP_TIMER    7500  // s (2 hours 5 minutes)
 #define DEFAULT_HEIGHT          30.0  // km
 #define DEFAULT_DISTANCE        100.0 // km

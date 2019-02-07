@@ -9,7 +9,7 @@
 #ifndef CUTDOWN_LOGGER_H
 #define CUTDOWN_LOGGER_H
 
-#include "Cutdown_Pinout.h"
+#include "Cutdown_Pinout_RevB.h"
 #include "Arduino.h"
 #include "SERCOM.h"
 #include "wiring_private.h"

@@ -9,12 +9,13 @@
 #ifndef CUTDOWN_H
 #define CUTDOWN_H
 
-#include "Cutdown_Pinout.h"
+#include "Cutdown_Pinout_RevB.h"
 #include "Cutdown_OLED.h"
 #include "Cutdown_ATtiny.h"
 #include "Cutdown_ADC.h"
 #include "Cutdown_GPS.h"
 
+//#define WAIT_FOR_GPS
 #define GPS_WAIT_TIME   180 // s (3 min)
 
 // uncomment if the backup timer should fire regardless of the primary

@@ -19,17 +19,15 @@ void Cutdown_OLED::init(void)
     pinPeripheral(OLED_MISO, OLED_MISO_MUX);
     pinPeripheral(OLED_MOSI, OLED_MOSI_MUX);
     pinPeripheral(OLED_SCK, OLED_SCK_MUX);
-    pinMode(OLED_CS, OUTPUT);
-    digitalWrite(OLED_CS, LOW);
-    pinMode(OLED_RES, OUTPUT);
-    digitalWrite(OLED_RES, HIGH);
+    pinMode(OLED_RES_N, OUTPUT);
+    digitalWrite(OLED_RES_N, HIGH);
 
     delay(1000);
 
     // reset oled
-    digitalWrite(OLED_RES, LOW);
+    digitalWrite(OLED_RES_N, LOW);
     delay(100);
-    digitalWrite(OLED_RES, HIGH);
+    digitalWrite(OLED_RES_N, HIGH);
     delay(10);
 
     // initialization routine from datasheet

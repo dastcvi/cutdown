@@ -19,8 +19,8 @@ void Cutdown_ATtiny::init()
     pinPeripheral(ATTINY_MISO, ATTINY_MISO_MUX);
     pinPeripheral(ATTINY_MOSI, ATTINY_MOSI_MUX);
     pinPeripheral(ATTINY_SCK, ATTINY_SCK_MUX);
-    pinMode(ATTINY_RST, OUTPUT);
-    digitalWrite(ATTINY_RST, HIGH); /* keep out of reset */
+    pinMode(ATTINY_RST_N, OUTPUT);
+    digitalWrite(ATTINY_RST_N, HIGH); /* keep out of reset */
 }
 
 uint16_t Cutdown_ATtiny::read_timer(void)

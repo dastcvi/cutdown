@@ -166,10 +166,6 @@ void Cutdown::unarmed(void)
         adc.thermal_control();
 
         config_update();
-        
-        oled.init(); // revA workaround, serial for configuring kills the OLED
-        oled.clear();
-        oled.write_line("SYSTEM UNARMED", LINE1);
 
         if (!check_batteries()) {
             oled.write_line("!Low Battery!", LINE2);
@@ -178,7 +174,11 @@ void Cutdown::unarmed(void)
         wait_timer(2);
     }
 
+#ifdef WAIT_FOR_GPS
     state = ST_GPSWAIT;
+#else
+    state = ST_ARMED;
+#endif
 }
 
 
@@ -280,7 +280,9 @@ void Cutdown::armed(void)
         oled.write_line("System", LINE1);
         oled.write_line("Armed", LINE2);
         cutdown_log("System armed");
+        digitalWrite(BUZZER, HIGH);
         wait_timer(2);
+        digitalWrite(BUZZER, LOW);
 
         attiny.arm(); // revA workaround, will be replaced in hardware
     }
@@ -336,39 +338,46 @@ void Cutdown::fire(void)
     wait_timer(1);
 
     oled.write_line("Firing: 5", LINE2);
+    digitalWrite(BUZZER, HIGH);
     wait_timer(1);
     oled.write_line("Firing: 4", LINE2);
+    digitalWrite(BUZZER, LOW);
     wait_timer(1);
     oled.write_line("Firing: 3", LINE2);
+    digitalWrite(BUZZER, HIGH);
     wait_timer(1);
     oled.write_line("Firing: 2", LINE2);
+    digitalWrite(BUZZER, LOW);
     wait_timer(1);
     oled.write_line("Firing: 1", LINE2);
+    digitalWrite(BUZZER, HIGH);
     wait_timer(1);
 
-    digitalWrite(SQUIB2_GATE, HIGH);
+
+    digitalWrite(BUZZER, LOW);
+    digitalWrite(SQUIB_PRI_GATE, HIGH);
     delay(1000); // should only need a few ms
-    digitalWrite(SQUIB2_GATE, LOW);
+    digitalWrite(SQUIB_PRI_GATE, LOW);
 
     // if that didn't work, try again
-    if (check_squib(adc.squib2.read())) {
+    if (check_squib(adc.squib_pri.read())) {
         oled.write_line("Squib failed", LINE2);
         cutdown_log("Fire 1 failed");
         delay(1000);
 
-        digitalWrite(SQUIB2_GATE, HIGH);
+        digitalWrite(SQUIB_PRI_GATE, HIGH);
         delay(1000); // should only need a few ms
-        digitalWrite(SQUIB2_GATE, LOW);
+        digitalWrite(SQUIB_PRI_GATE, LOW);
 
-        // if that didn't work, fire the backup
-        if (check_squib(adc.squib2.read())) {
+        // if that didn't work, fire the backup (which may not be present)
+        if (check_squib(adc.squib_pri.read())) {
             cutdown_log("Fire 2 failed, firing backup");
             oled.write_line("Firing backup", LINE2);
             delay(1000);
 
-            digitalWrite(SQUIB1_GATE, HIGH);
+            digitalWrite(SQUIB_BCK_GATE, HIGH);
             delay(1000); // should only need a few ms
-            digitalWrite(SQUIB1_GATE, LOW);
+            digitalWrite(SQUIB_BCK_GATE, LOW);
 
             oled.write_line("Fired backup ", LINE2);
             cutdown_log("Fired backup");
@@ -383,7 +392,7 @@ void Cutdown::fire(void)
 
     // keep the backup MCU from firing another squib
 #ifndef DEMO_BACKUP_TIMER
-    digitalWrite(SQUIB_FIRED, HIGH);
+    // todo: write SPI packet to ATtiny
 #endif
 
     wait_timer(10);
@@ -405,15 +414,15 @@ void Cutdown::finished(void)
 
 inline bool Cutdown::arm_signal(void)
 {
-    return (digitalRead(SYSTEM_ARM) == HIGH);
+    return (digitalRead(SYSTEM_ARM_N) == LOW);
 }
 
 
 // returns false if low battery, powers the system down if both critical
 bool Cutdown::check_batteries(void)
 {
-    float batt1 = adc.v_batt1.read();
-    float batt2 = adc.v_batt2.read();
+    float batt1 = adc.v_batt_pri.read();
+    float batt2 = adc.v_batt_bck.read();
     bool critical = false;
     bool nominal = true;
 
@@ -439,7 +448,7 @@ bool Cutdown::check_batteries(void)
 
     if (critical) {
         cutdown_log("Critical battery, power down");
-        cutdown_poweroff();
+        //cutdown_poweroff();
     }
 
     return nominal;
@@ -506,15 +515,15 @@ void Cutdown::cycle_oled_info(bool cycle)
         oled.write_line(line2, LINE2);
         break;
     case OI_SQUIB:
-        if (check_squib(adc.squib2.read())) {
-            oled.write_line("Squib OK", LINE2);
+        if (check_squib(adc.squib_pri.read())) {
+            oled.write_line("PRI Squib OK", LINE2);
             if (cycle) {
-                cutdown_log("Squib OK");
+                cutdown_log("PRI Squib OK");
             }
         } else {
             oled.write_line("!Error!", LINE2);
             if (cycle) {
-                cutdown_log("Squib error");
+                cutdown_log("PRI Squib error");
             }
         }
         break;
@@ -556,12 +565,12 @@ void Cutdown::cycle_oled_info(bool cycle)
         }
         break;
     case OI_BATT1:
-        line2_str = String(adc.v_batt1.check());
+        line2_str = String(adc.v_batt_pri.check());
         line2_str += " V";
         oled.write_line((char *) line2_str.c_str(), LINE2);
         break;
     case OI_BATT2:
-        line2_str = String(adc.v_batt2.check());
+        line2_str = String(adc.v_batt_bck.check());
         line2_str += " V";
         oled.write_line((char *) line2_str.c_str(), LINE2);
         break;

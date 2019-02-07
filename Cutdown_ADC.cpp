@@ -48,14 +48,11 @@ float ADC_Channel::check(void)
 
 // Cutdown_ADC methods ------------------------------------------
 Cutdown_ADC::Cutdown_ADC() :
-    thermistor (0.0f,  THERM_DIVIDE,  THERMISTOR),
-    squib1     (0.0f,  SQUIB1_DIVIDE, VMON_SQUIB1),
-    squib2     (0.0f,  SQUIB1_DIVIDE, VMON_SQUIB2),
-    v_3v3a     (3.3f,  V3V3A_DIVIDE,  VMON_3V3A),
-    v_3v3b     (3.3f,  V3V3B_DIVIDE,  VMON_3V3B),
-    v_batt1    (12.0f, VBATT1_DIVIDE, VMON_BATT1),  // needs to start above low-battery threshold
-    v_batt2    (12.0f, VBATT2_DIVIDE, VMON_BATT2),  // needs to start above low-battery threshold
-    v_batt     (12.0f, VBATT_DIVIDE,  VMON_VBATT)   // needs to start above low-battery threshold
+    thermistor  (0.0f,  THERM_DIVIDE, THERMISTOR),
+    squib_pri   (0.0f,  SQUIB_DIVIDE, VMON_SQUIB_PRI),
+    squib_bck   (0.0f,  SQUIB_DIVIDE, VMON_SQUIB_BCK),
+    v_batt_pri  (12.0f, VBATT_DIVIDE, VMON_BATT_PRI),  // needs to start above low-battery threshold
+    v_batt_bck  (12.0f, VBATT_DIVIDE, VMON_BATT_BCK)   // needs to start above low-battery threshold
 { }
 
 void Cutdown_ADC::init(void)
