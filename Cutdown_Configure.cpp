@@ -30,6 +30,8 @@ void config_init(void)
     cutdown_config.low_batt_voltage = DEFAULT_LOW_VOLT;
     cutdown_config.origin_lat = SPSC_LATITUDE;
     cutdown_config.origin_long = SPSC_LONGITUDE;
+    cutdown_config.cutaway_ceiling = DEFAULT_CEILING;
+    cutdown_config.system_mode = MODE_CUTAWAY;
 }
 
 void config_update(void)
@@ -146,6 +148,31 @@ static void process_command(void)
         Serial.print("Set low battery voltage (V): ");
         Serial.println(cutdown_config.low_batt_voltage);
         return;
+    }
+
+    if (0 == (strcmp(command_buffer, SYSTEM_MODE))) {
+        if (0 == (strcmp(value_buffer, "cutdown")) || 0 == (strcmp(value_buffer, "CUTDOWN"))) {
+            cutdown_config.system_mode = MODE_CUTDOWN;
+            Serial.println("Set mode to cutdown");
+            return;
+        }
+        
+        if (0 == (strcmp(value_buffer, "cutaway")) || 0 == (strcmp(value_buffer, "CUTAWAY"))) {
+            cutdown_config.system_mode = MODE_CUTAWAY;
+            Serial.println("Set mode to cutaway");
+            return;
+        }
+
+        Serial.println("Invalid mode selection");
+    }
+
+    if (0 == (strcmp(command_buffer, CUTAWAY_CEILING))) {
+        if ((float_value = parse_float()) <= 0.0f) return;
+
+        cutdown_config.cutaway_ceiling = float_value;
+        Serial.print("Set cutaway ceiling (hPa): ");
+        Serial.println(cutdown_config.cutaway_ceiling);
+
     }
 
     Serial.println("Invalid config command");

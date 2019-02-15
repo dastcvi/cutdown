@@ -15,6 +15,9 @@
 #include "wiring_private.h"
 #include <stdint.h>
 
+#define LOGGER_USB
+#define LOGGER_SERIAL
+
 void logger_init(void);
 
 void cutdown_log(char * message);

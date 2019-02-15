@@ -65,15 +65,28 @@ void Cutdown_ADC::init(void)
 void Cutdown_ADC::thermal_control(void)
 {
     static bool heating = false;
+    static uint8_t temp_num = 0;
+
+    // get a new reading
     float temp = calculate_temperature(thermistor.read());
-
     cutdown_log("temp ", temp);
+    cutdown_log("volt ", thermistor.check());
 
-    if (TEMP_SETPOINT > temp && !heating) {
+    // store the new temp in the circular bufferred array
+    last_temps[temp_num] = temp;
+    temp_num = (temp_num + 1) % 4;
+
+    // update the running average
+    float avg_temp = 0.0f;
+    for (int i = 0; i < 4; i++) avg_temp += last_temps[i];
+    avg_temp /= 4;
+
+    // check if the heater state should change
+    if (TEMP_SETPOINT > avg_temp && !heating) {
         digitalWrite(HEATER_GATE, HIGH);
         cutdown_log("Heater on");
         heating = true;
-    } else if (TEMP_SETPOINT < temp && heating) {
+    } else if (TEMP_SETPOINT < avg_temp && heating) {
         digitalWrite(HEATER_GATE, LOW);
         cutdown_log("Heater off");
         heating = false;

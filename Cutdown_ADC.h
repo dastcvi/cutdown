@@ -69,6 +69,8 @@ public:
     ADC_Channel squib_bck;
     ADC_Channel v_batt_pri;
     ADC_Channel v_batt_bck;
+private:
+    float last_temps[4] = {TEMP_SETPOINT, TEMP_SETPOINT, TEMP_SETPOINT, TEMP_SETPOINT};
 };
 
 #endif

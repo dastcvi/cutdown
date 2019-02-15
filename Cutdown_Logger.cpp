@@ -27,9 +27,16 @@ void logger_init(void)
 
 void cutdown_log(char * message)
 {
+#ifdef LOGGER_SERIAL
     Logger_Serial.print(millis());
     Logger_Serial.print(": ");
     Logger_Serial.println(message);
+#endif
+#ifdef LOGGER_USB
+    Serial.print(millis());
+    Serial.print(": ");
+    Serial.println(message);
+#endif
 }
 
 void cutdown_log(char * message, float f1)
