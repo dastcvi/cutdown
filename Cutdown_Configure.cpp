@@ -18,6 +18,7 @@ static float parse_float(void);
 Cutdown_Configuration_t cutdown_config = {0};
 static char command_buffer[8] = "";
 static char value_buffer[8] = "";
+bool update_backup_timer = false;
 
 void config_init(void)
 {
@@ -28,10 +29,10 @@ void config_init(void)
     cutdown_config.trigger_distance = DEFAULT_DISTANCE;
     cutdown_config.critical_batt_voltage = DEFAULT_CRITICAL_VOLT;
     cutdown_config.low_batt_voltage = DEFAULT_LOW_VOLT;
-    cutdown_config.origin_lat = SPSC_LATITUDE;
-    cutdown_config.origin_long = SPSC_LONGITUDE;
+    cutdown_config.origin_lat = LARAMIE_LATITUDE;
+    cutdown_config.origin_long = LARAMIE_LONGITUDE;
     cutdown_config.cutaway_ceiling = DEFAULT_CEILING;
-    cutdown_config.system_mode = MODE_CUTAWAY;
+    cutdown_config.system_mode = DEFAULT_SYSTEM_MODE;
 }
 
 void config_update(void)
@@ -109,6 +110,7 @@ static void process_command(void)
         if ((int_value = parse_int()) <= 0) return;
 
         cutdown_config.backup_timer = (uint16_t) int_value;
+        update_backup_timer = true;
         Serial.print("Set backup timer (s): ");
         Serial.println(cutdown_config.backup_timer);
         return;
