@@ -18,8 +18,8 @@
 // https://github.com/arduino/ArduinoCore-samd/blob/master/variants/arduino_zero/variant.cpp#L17
 
 // GPIO
-#define SQUIB1_GATE      2  /* PA14 */
-#define SQUIB2_GATE      5  /* PA15 */
+#define SQUIB_BCK_GATE   2  /* PA14 */
+#define SQUIB_PRI_GATE   5  /* PA15 */
 //#define BUZZER           11 /* PA16 */ (UNUSED REVA)
 #define POWER_OFF        20 /* PA22 */
 #define HEATER_GATE	     21 /* PA23, supposed to be Radio_GPIO2, RevA white-wire */
@@ -28,12 +28,12 @@
 
 // ADC
 #define THERMISTOR       14 /* PA02 */
-#define VMON_SQUIB1      -1 /* PA03 */
-#define VMON_SQUIB2      17 /* PA04 */
+#define VMON_SQUIB_BCK   -1 /* PA03 */
+#define VMON_SQUIB_PRI   17 /* PA04 */
 #define VMON_3V3A        18 /* PA05 */
 #define VMON_3V3B        8  /* PA06, not arduino analog, but works */
-#define VMON_BATT1       9  /* PA07, not arduino analog, but works */
-#define VMON_BATT2       19 /* PB02 */
+#define VMON_BATT_PRI    9  /* PA07, not arduino analog, but works */
+#define VMON_BATT_BCK    19 /* PB02 */
 #define VMON_VBATT       25 /* PB03, not arduino analog, weird behavior */
 
 // OLED
@@ -41,7 +41,7 @@
 #define OLED_MOSI        15 /* PB08, 4.0 */
 #define OLED_SCK         24 /* PB11, 4.3 */
 #define OLED_CS          23 /* PB10, 4.2 */
-#define OLED_RES         26 /* PA27 */
+#define OLED_RES_N       26 /* PA27 */
 #define OLED_TX_PAD      (SPI_PAD_0_SCK_3)
 #define OLED_RX_PAD      (SERCOM_RX_PAD_1)
 #define OLED_SERCOM      (&sercom4)
@@ -56,7 +56,7 @@
 #define ATTINY_MISO      4  /* PA08, 0.0 */
 #define ATTINY_MOSI      1  /* PA10, 0.2 */
 #define ATTINY_SCK       0  /* PA11, 0.3 */
-#define ATTINY_RST       3  /* PA09, 0.1 */
+#define ATTINY_RST_N     3  /* PA09, 0.1 */
 #define ATTINY_TX_PAD    (SPI_PAD_2_SCK_3)
 #define ATTINY_RX_PAD    (SERCOM_RX_PAD_0)
 #define ATTINY_SERCOM    (&sercom0)

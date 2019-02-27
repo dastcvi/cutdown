@@ -14,7 +14,11 @@
 #include "Cutdown_ATtiny.h"
 #include "Cutdown_ADC.h"
 #include "Cutdown_GPS.h"
+#include <Wire.h>
+#include "wiring_private.h"
+//#include <Adafruit_MPL3115A2.h>
 
+#define WAIT_FOR_GPS
 #define GPS_WAIT_TIME   180 // s (3 min)
 
 // uncomment if the backup timer should fire regardless of the primary
@@ -23,8 +27,9 @@
 // indices for state array (must be in same order as in array!)
 typedef enum {
     ST_UNARMED = 0,
-    ST_GPSWAIT,
-    ST_ARMED,
+    ST_ARM,
+    ST_CUTDOWN,
+    ST_CUTAWAY,
     ST_FIRE,
     ST_FINISHED,
     NUM_STATES
@@ -34,12 +39,14 @@ typedef enum {
 typedef enum : uint8_t {
     OI_TPRI = 0,
     OI_TBCK,
-    OI_SQUIB,
+    OI_SQUIB_PRI,
+    OI_SQUIB_BCK,
     OI_LASTGPS,
     OI_SET_DISTANCE,
     OI_DISTANCE,
     OI_SET_HEIGHT,
     OI_HEIGHT,
+    OI_PRESSURE,
     OI_BATT1,
     OI_BATT2,
     OI_TEMP,
@@ -58,8 +65,9 @@ public:
 private:
     // State functions
     void unarmed(void);
-    void gps_wait(void);
-    void armed(void);
+    void arm(void);
+    void cutdown(void);
+    void cutaway(void);
     void fire(void);
     void finished(void);
 
@@ -69,8 +77,9 @@ private:
     // State array (items must be in same order as in State_t enum!)
     void (Cutdown::*state_array[NUM_STATES])(void) = {
 		&Cutdown::unarmed,
-        &Cutdown::gps_wait,
-		&Cutdown::armed,
+        &Cutdown::arm,
+        &Cutdown::cutdown,
+        &Cutdown::cutaway,
 		&Cutdown::fire,
 		&Cutdown::finished
 	};
@@ -78,19 +87,23 @@ private:
     // Timer value
     int32_t cutdown_timer;
 
-    // Global flag to avoid resetting the backup timer if a reboot is detected
-    bool reboot_detected;
+    // Pressure holder
+    float last_pressure;
 
     // Driver instances
     Cutdown_OLED oled;
     Cutdown_ATtiny attiny;
     Cutdown_ADC adc;
     Cutdown_GPS gps;
+    //Adafruit_MPL3115A2 baro;
 
     // Helper functions
     inline bool arm_signal();
-    bool check_batteries();
+    bool check_batteries(bool critical_stage);
     bool gps_trigger();
+    void gps_log();
+    bool pressure_trigger();
+    void pressure_log();
     void cycle_oled_info(bool cycle);
 };
 

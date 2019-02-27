@@ -11,10 +11,10 @@ void cutdown_pinmux(void)
 {
     /* arming and firing setup */
     pinMode(SYSTEM_ARM, INPUT);
-    pinMode(SQUIB1_GATE, OUTPUT);
-    digitalWrite(SQUIB1_GATE, LOW);
-    pinMode(SQUIB2_GATE, OUTPUT);
-    digitalWrite(SQUIB2_GATE, LOW);
+    pinMode(SQUIB_BCK_GATE, OUTPUT);
+    digitalWrite(SQUIB_BCK_GATE, LOW);
+    pinMode(SQUIB_PRI_GATE, OUTPUT);
+    digitalWrite(SQUIB_PRI_GATE, LOW);
     pinMode(SQUIB_FIRED, OUTPUT);   // revA-specific
     digitalWrite(SQUIB_FIRED, LOW); // revA-specific
     pinMode(POWER_OFF, OUTPUT);

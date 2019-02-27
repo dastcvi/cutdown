@@ -19,8 +19,8 @@ void Cutdown_ATtiny::init()
     pinPeripheral(ATTINY_MISO, ATTINY_MISO_MUX);
     pinPeripheral(ATTINY_MOSI, ATTINY_MOSI_MUX);
     pinPeripheral(ATTINY_SCK, ATTINY_SCK_MUX);
-    pinMode(ATTINY_RST, OUTPUT);
-    digitalWrite(ATTINY_RST, HIGH); /* keep out of reset */
+    pinMode(ATTINY_RST_N, OUTPUT);
+    digitalWrite(ATTINY_RST_N, HIGH); /* keep out of reset */
 }
 
 uint16_t Cutdown_ATtiny::read_timer(void)
@@ -48,6 +48,12 @@ uint16_t Cutdown_ATtiny::read_timer(void)
     attiny_spi.beginTransaction(attiny_spi_settings);
     attiny_timer |= ((uint16_t) attiny_spi.transfer(CMD_EMPTY) << 8);
     attiny_spi.endTransaction();
+    
+    delay(1); /* give it time to process the last byte */
+
+    // attiny_spi.beginTransaction(attiny_spi_settings);
+    // attiny_spi.transfer(WR_TIMER_EEPROM);
+    // attiny_spi.endTransaction();
 
     return attiny_timer;
 }

@@ -27,13 +27,8 @@
 
 // Voltage dividers by channel
 #define THERM_DIVIDE    (1.0f)    // direct
-#define SQUIB1_DIVIDE   (1.0f)    // direct
-#define SQUIB2_DIVIDE   (1.0f)    // direct
-#define V3V3A_DIVIDE    (0.5f)    // 3v3a   - 10k   - ADC - 10k - GND
-#define V3V3B_DIVIDE    (0.5f)    // 3v3a   - 10k   - ADC - 10k - GND
-#define VBATT1_DIVIDE   (0.1104f) // vbatt1 - 80.6k - ADC - 10k - GND
-#define VBATT2_DIVIDE   (0.1104f) // vbatt2 - 80.6k - ADC - 10k - GND
-#define VBATT_DIVIDE    (0.1104f) // vbatt  - 80.6k - ADC - 10k - GND
+#define SQUIB_DIVIDE    (1.0f)     // direct
+#define VBATT_DIVIDE    (0.1104f)  // vbatt - 80.6k - ADC - 10k - GND
 
 // returns the temperature in celsius given the MCP9700A thermistor voltage
 float calculate_temperature(float voltage);
@@ -70,13 +65,12 @@ public:
 
     // Channels
     ADC_Channel thermistor;
-    ADC_Channel squib1;
-    ADC_Channel squib2;
-    ADC_Channel v_3v3a;
-    ADC_Channel v_3v3b;
-    ADC_Channel v_batt1;
-    ADC_Channel v_batt2;
-    ADC_Channel v_batt;
+    ADC_Channel squib_pri;
+    ADC_Channel squib_bck;
+    ADC_Channel v_batt_pri;
+    ADC_Channel v_batt_bck;
+private:
+    float last_temps[4] = {TEMP_SETPOINT, TEMP_SETPOINT, TEMP_SETPOINT, TEMP_SETPOINT};
 };
 
 #endif
