@@ -18,9 +18,9 @@
 #define MCMURDO_LONGITUDE       166.661243
 
 // -------- CHANGE CONFIGS HERE --------
-#define SERIAL_NUMBER           2
+#define SERIAL_NUMBER           1
 
-#define SYSTEM_MODE             MODE_CUTDOWN
+#define SYSTEM_MODE             MODE_CUTAWAY
 
 #define CUTAWAY_TIMER           18000 // s (5 hours)
 #define CUTAWAY_BACKUP_TIMER    18300 // s (5 hours 5 minutes)

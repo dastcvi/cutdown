@@ -30,7 +30,6 @@ FlashStorage(config_flasheeprom, Cutdown_Configuration_t);
 bool load_config_from_fee(void)
 {
     cutdown_config = config_flasheeprom.read();
-    Serial.print("Config: "), Serial.println(cutdown_config.config_version, HEX);
     return cutdown_config.config_version == CURRENT_CONFIG_VERSION;
 }
 
@@ -114,6 +113,7 @@ static bool process_command(void)
         if ((int_value = parse_int()) <= 0) return false;
 
         cutdown_config.primary_timer = (uint16_t) int_value;
+        cutdown_config.primary_timer_remaining = (uint16_t) int_value;
         Serial.print("Set primary timer (s): ");
         Serial.println(cutdown_config.primary_timer);
         return true;
@@ -243,7 +243,7 @@ static bool process_command(void)
 
 void display_menu(void)
 {
-    Serial.println("--- Config Menu ---\n"); delay(1);
+    Serial.println("\n--- Config Menu ---\n"); delay(1);
     
     Serial.println("Command format: CMD,value"); delay(1);
     Serial.println("TPRI,(int) primary timer"); delay(1);
@@ -273,7 +273,7 @@ void display_fee(void)
         return;
     }
 
-    Serial.println("--- FEE Contents ---");
+    Serial.println("\n--- FEE Contents ---");
     Serial.print("Version: 0x"); Serial.println(cutdown_config.config_version, HEX); delay(1);
     Serial.print("Serial #: "); Serial.println(cutdown_config.serial_number); delay(1);
     Serial.print("Primary timer: "); Serial.println(cutdown_config.primary_timer); delay(1);

@@ -12,6 +12,7 @@
 #include "Cutdown_Configure.h"
 #include "Cutdown_Commission.h"
 #include "Adafruit_ZeroTimer.h"
+#include "Adafruit_SleepyDog.h"
 
 
 // globals
@@ -131,12 +132,15 @@ void Cutdown::init(void)
     baro.begin();
     timer_init();
     logger_init();
+    Watchdog.enable(8000); // loose 8 second reset period
 
     // allows a small wait, and aligns timing
     wait_timer(2);
 
     // initialize last timer write to current remaining timer
     last_fee_write = cutdown_config.primary_timer_remaining;
+
+    Watchdog.reset();
 
     // if the arm signal is already high, assume unplanned reboot
     if (arm_signal()) {
@@ -161,6 +165,8 @@ void Cutdown::init(void)
         state = ST_UNARMED;
     }
 
+    Watchdog.reset();
+
     cutdown_log(LOG_INFO, "Initialized");
 }
 
@@ -182,6 +188,8 @@ void Cutdown::unarmed(void)
 
     cutdown_log(LOG_INFO, "Unarmed entered");
 
+    Watchdog.reset();
+
     // reset the timer
     cutdown_config.primary_timer_remaining = cutdown_config.primary_timer;
     last_fee_write = cutdown_config.primary_timer_remaining;
@@ -202,6 +210,7 @@ void Cutdown::unarmed(void)
     if (!gps.stop_nmea()) {
         cutdown_log(LOG_ERROR, "Error muting nmea");
         oled.write_line("GPS Config Error", LINE2);
+        Watchdog.reset();
         wait_timer(5);
         state = ST_UNARMED;
         return;
@@ -209,14 +218,27 @@ void Cutdown::unarmed(void)
     if (!gps.set_airborne()) {
         cutdown_log(LOG_ERROR, "Error setting to airborne");
         oled.write_line("GPS Config Error", LINE2);
+        Watchdog.reset();
         wait_timer(5);
         state = ST_UNARMED;
         return;
     }
     cutdown_log(LOG_INFO, "GPS configured");
 
+    // re-write backup timer
+    if (!attiny.write_timer(cutdown_config.backup_timer)) {
+        cutdown_log(LOG_ERROR, "Error writing backup timer in unarmed");
+        oled.write_line("TBCK: WriteError", LINE2);
+        Watchdog.reset();
+        wait_timer(5);
+        state = ST_UNARMED;
+        return;
+    }
+
     // wait to be armed, while checking for config updates
     while (!arm_signal()) {
+        Watchdog.reset();
+
         // different operation every other loop
         if (loop_toggle) {
             // get new OLED info
@@ -262,6 +284,8 @@ void Cutdown::unarmed(void)
         wait_timer(1);
     }
 
+    Watchdog.reset();
+
     // loop exited => armed
     if (cutdown_config.system_mode == MODE_CUTDOWN) {
         state = ST_ARM; // go to the wait for GPS state (required because first lock is kept as origin for triggers)
@@ -278,6 +302,8 @@ void Cutdown::arm(void)
 
     cutdown_log(LOG_INFO, "Arming: waiting on GPS lock");
 
+    Watchdog.reset();
+
     // update to OLED info for this state
     oled.clear();
     if (cutdown_config.system_mode == MODE_CUTAWAY) {
@@ -287,6 +313,8 @@ void Cutdown::arm(void)
     }
 
     while (!gps_locked) {
+        Watchdog.reset();
+        
         if (loop_toggle) {
             // get new oled info
             cycle_oled_info(true);
@@ -328,6 +356,8 @@ void Cutdown::arm(void)
 
     cutdown_log(LOG_INFO, "GPS lock acquired, origin set");
 
+    Watchdog.reset();
+
     // switch to the configured armed state
     if (cutdown_config.system_mode == MODE_CUTAWAY) {
         state = ST_CUTAWAY;
@@ -344,6 +374,8 @@ void Cutdown::cutdown(void)
 
     cutdown_log(LOG_INFO, "Armed in cutdown mode");
 
+    Watchdog.reset();
+
     // update to oled info for this state
     oled.clear();
     oled.write_line("ARMED:", LINE1);
@@ -356,6 +388,8 @@ void Cutdown::cutdown(void)
 
     // wait for a trigger or to be unarmed
     while (!trigger_met) {
+        Watchdog.reset();
+
         if (loop_toggle) {
             // get new oled info
             cycle_oled_info(true);
@@ -395,6 +429,8 @@ void Cutdown::cutdown(void)
         }
     }
 
+    Watchdog.reset();
+
     state = ST_FIRE;
 }
 
@@ -405,6 +441,8 @@ void Cutdown::cutaway(void)
     bool trigger_met = false;
 
     cutdown_log(LOG_INFO, "Armed in cutaway mode");
+
+    Watchdog.reset();
 
     // update to oled info for this state
     oled.clear();
@@ -418,6 +456,8 @@ void Cutdown::cutaway(void)
 
     // wait for a trigger or to be unarmed
     while (!trigger_met) {
+        Watchdog.reset();
+    
         if (loop_toggle) {
             // get new oled info
             cycle_oled_info(true);
@@ -456,6 +496,8 @@ void Cutdown::cutaway(void)
         }
     }
 
+    Watchdog.reset();
+
     state = ST_FIRE;
 }
 
@@ -465,11 +507,17 @@ void Cutdown::fire(void)
     bool gps_fixed = false;
     float cut_height = 0.0f;
 
+    // insurance in case of a reboot in this loop
+    cutdown_config.primary_timer_remaining = 60;
+    write_config_to_fee();
+
     // inform of firing on oled
     oled.clear();
     oled.write_line("Trigger Reached!", LINE1);
     cutdown_log(LOG_INFO, "Fire state!");
     wait_timer(1);
+
+    Watchdog.reset();
 
     // perform countdown with audible warnings
     oled.write_line("Firing: 5", LINE2);
@@ -487,6 +535,8 @@ void Cutdown::fire(void)
     oled.write_line("Firing: 1", LINE2);
     digitalWrite(BUZZER, HIGH);
     wait_timer(1);
+
+    Watchdog.reset();
 
     // get a final GPS location before cutdown (NOT used for cutaway)
     gps_fixed = (FIX_3D == gps.update_fix());
@@ -531,6 +581,8 @@ void Cutdown::fire(void)
         cutdown_log(LOG_INFO, "Fire success");
     }
 
+    Watchdog.reset();
+
     // if cutdown mode, try to ensure that we're actually falling
     if (cutdown_config.system_mode == MODE_CUTDOWN && gps_fixed) {
         delay(1000); // allow to fall for a bit
@@ -551,13 +603,21 @@ void Cutdown::fire(void)
         }
     }
 
-    wait_timer(10);
+    Watchdog.reset();
+
+    // now that we've succeeded write to be very large in case of reboot
+    cutdown_config.primary_timer_remaining = 64800; // 18h
+    write_config_to_fee();
+
+    wait_timer(1);
     state = ST_FINISHED;
 }
 
 
 void Cutdown::finished(void)
 {
+    Watchdog.reset();
+
     adc.thermal_control();
 
     gps_log();
