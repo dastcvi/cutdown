@@ -10,6 +10,7 @@
 #include "Cutdown.h"
 #include "Cutdown_Logger.h"
 #include "Cutdown_Configure.h"
+#include "Cutdown_Commission.h"
 #include "Adafruit_ZeroTimer.h"
 
 
@@ -93,14 +94,34 @@ static void print_time(char * display_buffer, uint16_t timer_seconds)
 Cutdown::Cutdown()
 {
     state = ST_UNARMED;
-    cutdown_timer = DEFAULT_TIMER;
     last_pressure = 1000.0f;
+    last_fee_write = 65000; // will be overwritten
 }
 
 
 // called in arduino setup()
 void Cutdown::init(void)
 {
+    delay(2000);
+
+    // if bad config AND not armed, enter commissioning (WILL NEED POWER CYCLE TO RUN NORMALLY!)
+    if (!load_config_from_fee() && !arm_signal()) {
+        cutdown_log(LOG_ERROR, "Config error, entering commission mode!");
+        commission_setup();
+        while(1) commission_loop();
+    }
+
+    // logging header
+    if (cutdown_config.system_mode == MODE_CUTAWAY) {
+        cutdown_log(LOG_INFO, "System powered on, mode: CUTAWAY");
+    } else if (cutdown_config.system_mode == MODE_CUTDOWN) {
+        cutdown_log(LOG_INFO, "System powered on, mode: CUTDOWN");
+    } else {
+        cutdown_log(LOG_ERROR, "System powered on, mode: ERROR");
+    }
+    cutdown_log(LOG_INFO, "Serial Number: %u", (uint32_t) cutdown_config.serial_number);
+
+    // start drivers
     cutdown_pinmux();
     oled.init();
     attiny.init();
@@ -108,12 +129,14 @@ void Cutdown::init(void)
     gps.init();
     Wire.begin();
     baro.begin();
-    config_init();
     timer_init();
     logger_init();
 
     // allows a small wait, and aligns timing
     wait_timer(2);
+
+    // initialize last timer write to current remaining timer
+    last_fee_write = cutdown_config.primary_timer_remaining;
 
     // if the arm signal is already high, assume unplanned reboot
     if (arm_signal()) {
@@ -123,21 +146,26 @@ void Cutdown::init(void)
             state = ST_CUTDOWN;
         }
     } else {
-        if (attiny.write_timer(cutdown_config.backup_timer)) {
-            cutdown_log("Wrote backup timer: %u", (uint32_t) cutdown_config.backup_timer);
+        // ONLY if not armed, check the ATtiny's timer
+        if (attiny.read_timer() == cutdown_config.backup_timer) {
+            cutdown_log(LOG_INFO, "Backup timer matches config");
         } else {
-            cutdown_log("Error writing backup timer");
-            oled.write_line("TBCK: error!", LINE2);
-            wait_timer(5);
+            if (attiny.write_timer(cutdown_config.backup_timer)) {
+                cutdown_log(LOG_INFO, "Wrote backup timer: %u", (uint32_t) cutdown_config.backup_timer);
+            } else {
+                cutdown_log(LOG_ERROR, "Error writing backup timer");
+                oled.write_line("TBCK: error!", LINE2);
+                wait_timer(5);
+            }
         }
         state = ST_UNARMED;
     }
 
-    cutdown_log("Initialized");
+    cutdown_log(LOG_INFO, "Initialized");
 }
 
 
-/* called in arduino loop() */
+/* called in arduino loop(), runs the state machine */
 void Cutdown::run(void)
 {
     // check for an out of bounds state
@@ -152,6 +180,17 @@ void Cutdown::unarmed(void)
 {
     bool loop_toggle = true;
 
+    cutdown_log(LOG_INFO, "Unarmed entered");
+
+    // reset the timer
+    cutdown_config.primary_timer_remaining = cutdown_config.primary_timer;
+    last_fee_write = cutdown_config.primary_timer_remaining;
+    write_config_to_fee();
+
+    // reset cutaway ceiling tracker
+    cutdown_config.ceiling_reached = false;
+
+    // update the OLED
     oled.clear();
     if (cutdown_config.system_mode == MODE_CUTAWAY) {
         oled.write_line("CUTAWAY UNARMED", LINE1);
@@ -159,30 +198,28 @@ void Cutdown::unarmed(void)
         oled.write_line("CUTDOWN UNARMED", LINE1);
     }
 
-    cutdown_log("Unarmed entered");
-
+    // re-initialize the GPS
     if (!gps.stop_nmea()) {
-        cutdown_log("Error muting nmea");
+        cutdown_log(LOG_ERROR, "Error muting nmea");
         oled.write_line("GPS Config Error", LINE2);
         wait_timer(5);
         state = ST_UNARMED;
         return;
     }
-
     if (!gps.set_airborne()) {
-        cutdown_log("Error setting to airborne");
+        cutdown_log(LOG_ERROR, "Error setting to airborne");
         oled.write_line("GPS Config Error", LINE2);
         wait_timer(5);
         state = ST_UNARMED;
         return;
     }
+    cutdown_log(LOG_INFO, "GPS configured");
 
-    cutdown_log("GPS configured");
-
+    // wait to be armed, while checking for config updates
     while (!arm_signal()) {
         // different operation every other loop
         if (loop_toggle) {
-            cutdown_timer = cutdown_config.primary_timer; // in case updated
+            // get new OLED info
             cycle_oled_info(true);
             if (cutdown_config.system_mode == MODE_CUTAWAY) {
                 oled.write_line("CUTAWAY UNARMED", LINE1);
@@ -191,26 +228,33 @@ void Cutdown::unarmed(void)
             }
 
             adc.thermal_control();
-
             pressure_log();
 
             if (!check_batteries(false)) {
                 oled.write_line(" !Low Battery!  ", LINE2);
             }
         } else {
+            // update current oled info
             cycle_oled_info(false);
-            config_update();
 
+            // check for new config messages
+            config_check_serial();
+
+            // update the backup timer if changed
             if (update_backup_timer) {
                 update_backup_timer = false;
                 if (attiny.write_timer(cutdown_config.backup_timer)) {
-                    cutdown_log("Wrote backup timer: %u", (uint32_t) cutdown_config.backup_timer);
+                    cutdown_log(LOG_INFO, "Wrote backup timer: %u", (uint32_t) cutdown_config.backup_timer);
                 } else {
-                    cutdown_log("Error updating backup timer from terminal");
+                    cutdown_log(LOG_ERROR, "Error updating backup timer from terminal");
                     oled.write_line("TBCK: error!", LINE2);
                     wait_timer(5);
                 }
             }
+            
+            // reset primary timer in case updated
+            cutdown_config.primary_timer_remaining = cutdown_config.primary_timer;
+            last_fee_write = cutdown_config.primary_timer_remaining;
         }
 
         loop_toggle ^= true; // toggle
@@ -218,7 +262,12 @@ void Cutdown::unarmed(void)
         wait_timer(1);
     }
 
-    state = ST_ARM;
+    // loop exited => armed
+    if (cutdown_config.system_mode == MODE_CUTDOWN) {
+        state = ST_ARM; // go to the wait for GPS state (required because first lock is kept as origin for triggers)
+    } else {
+        state = ST_CUTAWAY; // cutaway doesn't need GPS! skip wait state
+    }
 }
 
 
@@ -227,6 +276,9 @@ void Cutdown::arm(void)
     bool gps_locked = false;
     bool loop_toggle = true;
 
+    cutdown_log(LOG_INFO, "Arming: waiting on GPS lock");
+
+    // update to OLED info for this state
     oled.clear();
     if (cutdown_config.system_mode == MODE_CUTAWAY) {
         oled.write_line("CUTAWAY GPS WAIT", LINE1);
@@ -234,26 +286,27 @@ void Cutdown::arm(void)
         oled.write_line("CUTDOWN GPS WAIT", LINE1);
     }
 
-    cutdown_log("Arming: waiting on GPS lock");
-
     while (!gps_locked) {
         if (loop_toggle) {
+            // get new oled info
             cycle_oled_info(true);
-                if (cutdown_config.system_mode == MODE_CUTAWAY) {
-                    oled.write_line("CUTAWAY GPS WAIT", LINE1);
-                } else {
-                    oled.write_line("CUTDOWN GPS WAIT", LINE1);
-                }
+            if (cutdown_config.system_mode == MODE_CUTAWAY) {
+                oled.write_line("CUTAWAY GPS WAIT", LINE1);
+            } else {
+                oled.write_line("CUTDOWN GPS WAIT", LINE1);
+            }
 
             adc.thermal_control();
-
             pressure_log();
 
             if (!check_batteries(false)) {
                 oled.write_line(" !Low Battery!  ", LINE2);
             }
         } else {
+            // update current oled info
             cycle_oled_info(false);
+
+            // read the GPS and check for a fix
             gps_locked = (FIX_3D == gps.update_fix());
         }
 
@@ -271,8 +324,9 @@ void Cutdown::arm(void)
     // set the flight origin based on the first lock
     cutdown_config.origin_lat = gps.gps_data.latitude;
     cutdown_config.origin_long = gps.gps_data.longitude;
+    write_config_to_fee(); // with new GPS location
 
-    cutdown_log("GPS lock acquired, origin set");
+    cutdown_log(LOG_INFO, "GPS lock acquired, origin set");
 
     // switch to the configured armed state
     if (cutdown_config.system_mode == MODE_CUTAWAY) {
@@ -288,27 +342,27 @@ void Cutdown::cutdown(void)
     bool loop_toggle = true;
     bool trigger_met = false;
 
+    cutdown_log(LOG_INFO, "Armed in cutdown mode");
+
+    // update to oled info for this state
     oled.clear();
     oled.write_line("ARMED:", LINE1);
     oled.write_line("CUTDOWN", LINE2);
 
-    cutdown_log("Armed in cutdown mode");
-
+    // audible armed warning
     digitalWrite(BUZZER, HIGH);
     wait_timer(2);
     digitalWrite(BUZZER, LOW);
 
-    // load the timer with the configured value
-    cutdown_timer = cutdown_config.primary_timer;
-
+    // wait for a trigger or to be unarmed
     while (!trigger_met) {
         if (loop_toggle) {
+            // get new oled info
             cycle_oled_info(true);
             oled.write_line("Armed: Cutdown", LINE1);
 
             adc.thermal_control();
-
-            pressure_log();
+            //pressure_log(); // REMOVED: pressure driver is blocking, could cause issue
 
             if (!check_batteries(true)) {
                 oled.write_line(" !Low Battery!  ", LINE2);
@@ -316,20 +370,22 @@ void Cutdown::cutdown(void)
         } else {
             cycle_oled_info(false);
 
+            // check the GPS trigger
             if (gps_trigger()) {
                 trigger_met = true;
-                cutdown_log("GPS trigger met");
+                cutdown_log(LOG_INFO, "GPS trigger met");
             }
         }
 
         loop_toggle ^= true;
 
         // wait for 1 second, but count all that pass in case the loop was slow
-        cutdown_timer -= wait_timer(1);
+        decrement_timer(wait_timer(1));
 
-        if (cutdown_timer <= 0) {
+        // check the timer trigger
+        if (cutdown_config.primary_timer_remaining <= 0) {
             trigger_met = true;
-            cutdown_log("Timer met: %d", cutdown_timer);
+            cutdown_log(LOG_INFO, "Timer met: %d", (uint32_t) cutdown_config.primary_timer_remaining);
         }
 
         // ensure still armed before moving on
@@ -348,21 +404,22 @@ void Cutdown::cutaway(void)
     bool loop_toggle = true;
     bool trigger_met = false;
 
+    cutdown_log(LOG_INFO, "Armed in cutaway mode");
+
+    // update to oled info for this state
     oled.clear();
     oled.write_line("ARMED:", LINE1);
     oled.write_line("CUTAWAY", LINE2);
 
-    cutdown_log("Armed in cutaway mode");
-
+    // audible armed warning
     digitalWrite(BUZZER, HIGH);
     wait_timer(2);
     digitalWrite(BUZZER, LOW);
 
-    // load the timer with the configured value
-    cutdown_timer = cutdown_config.primary_timer;
-
+    // wait for a trigger or to be unarmed
     while (!trigger_met) {
         if (loop_toggle) {
+            // get new oled info
             cycle_oled_info(true);
             oled.write_line("Armed: Cutaway", LINE1);
 
@@ -374,20 +431,22 @@ void Cutdown::cutaway(void)
         } else {
             cycle_oled_info(false);
 
+            // check for a pressure trigger
             if (pressure_trigger()) {
                 trigger_met = true;
-                cutdown_log("Pressure trigger met");
+                cutdown_log(LOG_INFO, "Pressure trigger met");
             }
         }
 
         loop_toggle ^= true;
 
         // wait for 1 second, but count all that pass in case the loop was slow
-        cutdown_timer -= wait_timer(1);
+        decrement_timer(wait_timer(1));
 
-        if (cutdown_timer <= 0) {
+        // check the timer trigger
+        if (cutdown_config.primary_timer_remaining <= 0) {
             trigger_met = true;
-            cutdown_log("Timer met: %d", cutdown_timer);
+            cutdown_log(LOG_INFO, "Timer met: %d", (uint32_t) cutdown_config.primary_timer_remaining);
         }
 
         // ensure still armed before moving on
@@ -406,11 +465,13 @@ void Cutdown::fire(void)
     bool gps_fixed = false;
     float cut_height = 0.0f;
 
+    // inform of firing on oled
     oled.clear();
     oled.write_line("Trigger Reached!", LINE1);
-    cutdown_log("Fire state!");
+    cutdown_log(LOG_INFO, "Fire state!");
     wait_timer(1);
 
+    // perform countdown with audible warnings
     oled.write_line("Firing: 5", LINE2);
     digitalWrite(BUZZER, HIGH);
     wait_timer(1);
@@ -431,6 +492,7 @@ void Cutdown::fire(void)
     gps_fixed = (FIX_3D == gps.update_fix());
     cut_height = gps.gps_data.height;
 
+    // fire the primary squib!
     digitalWrite(BUZZER, LOW);
     digitalWrite(SQUIB_PRI_GATE, HIGH);
     delay(1000); // should only need a few ms
@@ -439,32 +501,34 @@ void Cutdown::fire(void)
     // if that didn't work, try again
     if (check_squib(adc.squib_pri.read())) {
         oled.write_line("Squib failed", LINE2);
-        cutdown_log("Fire 1 failed");
+        cutdown_log(LOG_ERROR, "Fire 1 failed");
         delay(1000);
 
+        // re-fire the primary squib!
         digitalWrite(SQUIB_PRI_GATE, HIGH);
         delay(1000); // should only need a few ms
         digitalWrite(SQUIB_PRI_GATE, LOW);
 
         // if that didn't work, fire the backup (which may not be present)
         if (check_squib(adc.squib_pri.read())) {
-            cutdown_log("Fire 2 failed, firing backup");
+            cutdown_log(LOG_ERROR, "Fire 2 failed, firing backup");
             oled.write_line("Firing backup", LINE2);
             delay(1000);
 
+            // fire the backup squib!
             digitalWrite(SQUIB_BCK_GATE, HIGH);
             delay(1000); // should only need a few ms
             digitalWrite(SQUIB_BCK_GATE, LOW);
 
             oled.write_line("Fired backup ", LINE2);
-            cutdown_log("Fired backup");
+            cutdown_log(LOG_INFO, "Fired backup");
         } else {
             oled.write_line("Squib succeeded", LINE2);
-            cutdown_log("Fire success");
+            cutdown_log(LOG_INFO, "Fire success");
         }
     } else {
         oled.write_line("Squib succeeded", LINE2);
-        cutdown_log("Fire success");
+        cutdown_log(LOG_INFO, "Fire success");
     }
 
     // if cutdown mode, try to ensure that we're actually falling
@@ -473,7 +537,7 @@ void Cutdown::fire(void)
 
         // make sure we aren't still going up
         if (FIX_3D == gps.update_fix() && cut_height < gps.gps_data.height) {
-            cutdown_log("Still ascending after fire!");
+            cutdown_log(LOG_ERROR, "Still ascending after fire!");
 
             // re-fire primary
             digitalWrite(SQUIB_PRI_GATE, HIGH);
@@ -506,14 +570,13 @@ void Cutdown::finished(void)
     wait_timer(5);
 }
 
-
-inline bool Cutdown::arm_signal(void)
+// true if armed, false if not
+bool Cutdown::arm_signal(void)
 {
     return (digitalRead(SYSTEM_ARM_N) == LOW);
 }
 
-
-// returns false if low battery, powers the system down if both critical
+// returns false if low battery, powers the system down if both critical and !critical_stage
 bool Cutdown::check_batteries(bool critical_stage)
 {
     float batt1 = adc.v_batt_pri.read();
@@ -521,7 +584,7 @@ bool Cutdown::check_batteries(bool critical_stage)
     bool critical = false;
     bool nominal = true;
 
-    cutdown_log("b1 ", batt1, ", b2 ", batt2);
+    cutdown_log(LOG_DEBUG, "b1 ", batt1, ", b2 ", batt2);
 
     if (batt1 > 5.0f) { // assume not plugged in if <5V
         if (batt1 < cutdown_config.critical_batt_voltage) {
@@ -542,7 +605,7 @@ bool Cutdown::check_batteries(bool critical_stage)
     }
 
     if (critical) {
-        cutdown_log("Critical battery, power down");
+        cutdown_log(LOG_ERROR, "Critical battery, power down");
         if (!critical_stage) cutdown_poweroff(); // don't power off if mid-flight
     }
 
@@ -556,21 +619,21 @@ bool Cutdown::gps_trigger()
 
     // only check the trigger with a valid, new 3-D fix
     if (FIX_3D != gps.update_fix()) {
-        cutdown_log("no gps fix");
+        cutdown_log(LOG_DEBUG, "no gps fix");
         gps.gps_data.height = GPS_INVALID_FLOAT;
         gps.gps_data.displacement = GPS_INVALID_FLOAT;
         return false;
     }
 
-    cutdown_log("lat ", gps.gps_data.latitude, ", long ", gps.gps_data.longitude);
-    cutdown_log("height ", gps.gps_data.height);
+    cutdown_log(LOG_DEBUG, "lat ", gps.gps_data.latitude, ", long ", gps.gps_data.longitude);
+    cutdown_log(LOG_DEBUG, "height ", gps.gps_data.height);
 
     // see if we've reached the height trigger
     if (gps.gps_data.height >= cutdown_config.trigger_height) return true;
 
     // see if we've reached the distance trigger
     dist = gps.distance_from(cutdown_config.origin_lat, cutdown_config.origin_long);
-    cutdown_log("dist ", dist);
+    cutdown_log(LOG_DEBUG, "dist ", dist);
     if (dist >= cutdown_config.trigger_distance) return true;
 
     return false;
@@ -581,14 +644,14 @@ void Cutdown::gps_log()
 {
     // only check the trigger with a valid, new 3-D fix
     if (FIX_3D != gps.update_fix()) {
-        cutdown_log("no gps fix");
+        cutdown_log(LOG_DEBUG, "no gps fix");
         gps.gps_data.height = GPS_INVALID_FLOAT;
         gps.gps_data.displacement = GPS_INVALID_FLOAT;
         return;
     }
 
-    cutdown_log("lat ", gps.gps_data.latitude, ", long ", gps.gps_data.longitude);
-    cutdown_log("height ", gps.gps_data.height);
+    cutdown_log(LOG_DEBUG, "lat ", gps.gps_data.latitude, ", long ", gps.gps_data.longitude);
+    cutdown_log(LOG_DEBUG, "height ", gps.gps_data.height);
 }
 
 
@@ -596,24 +659,32 @@ bool Cutdown::pressure_trigger()
 {
     static float last_pressures[10] = {0, 10, 20, 30, 40, 50, 60, 70, 80, 90}; // ensure no false static reading on reboot
     static uint8_t pressure_index = 0;
-    static bool reached_ceiling = false; // todo: make non-volatile
+    float mpl_temp = 0.0f;
     
     float running_avg = 0.0f;
 
+    // get a new pressure reading
     last_pressure = baro.getPressure() / 100.0f;
+    cutdown_log(LOG_DEBUG, "press ", last_pressure);
     
     // add to the last 10 pressures
     last_pressures[pressure_index] = last_pressure;
     pressure_index = (pressure_index + 1) % 10;
+    
+    // log this sensor's temperature reading too
+    mpl_temp = baro.getTemperature();
+    cutdown_log(LOG_DEBUG, "temp2 ", mpl_temp);
 
-    cutdown_log("press ", last_pressure);
-
+    // check if we're above or below the cutaway ceiling
     if (last_pressure < cutdown_config.cutaway_ceiling) {
-        if (!reached_ceiling) {
-            reached_ceiling = true;
-            cutdown_log("Reached ceiling");
+        // set that we've reached the ceiling if we haven't yet
+        if (!cutdown_config.ceiling_reached) {
+            cutdown_config.ceiling_reached = true;
+            write_config_to_fee();
+            last_fee_write = cutdown_config.primary_timer_remaining;
+            cutdown_log(LOG_INFO, "Reached ceiling");
         }
-    } else if (reached_ceiling && last_pressure > cutdown_config.cutaway_ceiling) {
+    } else if (cutdown_config.ceiling_reached && last_pressure > cutdown_config.cutaway_ceiling) {
         // get the current running average
         for (int i = 0; i < 10; i++) {
             running_avg += last_pressures[i];
@@ -637,8 +708,8 @@ void Cutdown::pressure_log(void)
     last_pressure = baro.getPressure() / 100.0f;
     mpl_temp = baro.getTemperature();
 
-    cutdown_log("press ", last_pressure);
-    cutdown_log("temp2 ", mpl_temp);
+    cutdown_log(LOG_DEBUG, "press ", last_pressure);
+    cutdown_log(LOG_DEBUG, "temp2 ", mpl_temp);
 }
 
 
@@ -660,16 +731,16 @@ void Cutdown::cycle_oled_info(bool cycle)
     switch (cycle_count) {
     case OI_TPRI:
         if (cycle) {
-            cutdown_log("tpri %u", cutdown_timer);
+            cutdown_log(LOG_DEBUG, "tpri %u", (uint32_t) cutdown_config.primary_timer_remaining);
         }
         snprintf(line2, 17, "PRI: ");
-        print_time(line2+5, (uint16_t) cutdown_timer);
+        print_time(line2+5, (uint16_t) cutdown_config.primary_timer_remaining);
         oled.write_line(line2, LINE2);
         break;
     case OI_TBCK:
         backup_timer = attiny.read_timer();
         if (cycle) {
-            cutdown_log("tbck %u", (uint32_t) backup_timer);
+            cutdown_log(LOG_DEBUG, "tbck %u", (uint32_t) backup_timer);
         }
         snprintf(line2, 17, "BCK: ");
         print_time(line2+5, (uint16_t) backup_timer);
@@ -679,12 +750,12 @@ void Cutdown::cycle_oled_info(bool cycle)
         if (check_squib(adc.squib_pri.read())) {
             oled.write_line("PRI Squib OK", LINE2);
             if (cycle) {
-                cutdown_log("PRI Squib OK");
+                cutdown_log(LOG_DEBUG, "PRI Squib OK");
             }
         } else {
             oled.write_line("PRI squib error!", LINE2);
             if (cycle) {
-                cutdown_log("PRI squib error!");
+                cutdown_log(LOG_DEBUG, "PRI squib error!");
             }
         }
         break;
@@ -692,12 +763,12 @@ void Cutdown::cycle_oled_info(bool cycle)
         if (check_squib(adc.squib_bck.read())) {
             oled.write_line("BCK Squib OK", LINE2);
             if (cycle) {
-                cutdown_log("BCK Squib OK");
+                cutdown_log(LOG_DEBUG, "BCK Squib OK");
             }
         } else {
             oled.write_line("BCK squib error!", LINE2);
             if (cycle) {
-                cutdown_log("BCK squib error!");
+                cutdown_log(LOG_DEBUG, "BCK squib error!");
             }
         }
         break;
@@ -768,5 +839,15 @@ void Cutdown::cycle_oled_info(bool cycle)
         break;
     default:
         break;
+    }
+}
+
+void Cutdown::decrement_timer(uint8_t seconds)
+{
+    cutdown_config.primary_timer_remaining -= 1;
+
+    if (last_fee_write - cutdown_config.primary_timer_remaining > 59) {
+        last_fee_write = cutdown_config.primary_timer_remaining;
+        write_config_to_fee();
     }
 }

@@ -7,6 +7,7 @@
 
 #include "Cutdown_ADC.h"
 #include "Cutdown_Logger.h"
+#include "Cutdown_Configure.h"
 
 // returns the temperature in celsius given the MCP9700A thermistor voltage
 float calculate_temperature(float voltage)
@@ -59,6 +60,10 @@ void Cutdown_ADC::init(void)
 {
     analogReference(AR_INTERNAL2V23); // internal 2.23V reference
     analogReadResolution(12); // 12-bit resolution
+    last_temps[0] = cutdown_config.temp_set_point;
+    last_temps[1] = cutdown_config.temp_set_point;
+    last_temps[2] = cutdown_config.temp_set_point;
+    last_temps[3] = cutdown_config.temp_set_point;
 }
 
 // TODO: add hysteresis!
@@ -69,8 +74,8 @@ void Cutdown_ADC::thermal_control(void)
 
     // get a new reading
     float temp = calculate_temperature(thermistor.read());
-    cutdown_log("temp ", temp);
-    cutdown_log("volt ", thermistor.check());
+    cutdown_log(LOG_DEBUG, "temp ", temp);
+    cutdown_log(LOG_DEBUG, "volt ", thermistor.check());
 
     // store the new temp in the circular bufferred array
     last_temps[temp_num] = temp;
@@ -82,13 +87,13 @@ void Cutdown_ADC::thermal_control(void)
     avg_temp /= 4;
 
     // check if the heater state should change
-    if (TEMP_SETPOINT > avg_temp && !heating) {
+    if (cutdown_config.temp_set_point > avg_temp && !heating) {
         digitalWrite(HEATER_GATE, HIGH);
-        cutdown_log("Heater on");
+        cutdown_log(LOG_DEBUG, "Heater on");
         heating = true;
-    } else if (TEMP_SETPOINT < avg_temp && heating) {
+    } else if (cutdown_config.temp_set_point < avg_temp && heating) {
         digitalWrite(HEATER_GATE, LOW);
-        cutdown_log("Heater off");
+        cutdown_log(LOG_DEBUG, "Heater off");
         heating = false;
     }
 }

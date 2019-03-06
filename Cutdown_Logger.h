@@ -15,15 +15,24 @@
 #include "wiring_private.h"
 #include <stdint.h>
 
-#define LOGGER_USB
-#define LOGGER_SERIAL
+// choose the lowest level to log to USB (select LOG_NONE to mute entirely)
+#define USB_LOGGER_LEVEL    LOG_INFO
+#define SERIAL_LOGGER_LEVEL LOG_DEBUG
+
+// ascending order of importance
+typedef enum : uint8_t {
+    LOG_DEBUG,
+    LOG_INFO,
+    LOG_ERROR,
+    LOG_NONE
+} Logger_Level_t;
 
 void logger_init(void);
 
-void cutdown_log(char * message);
-void cutdown_log(char * message, float f1);
-void cutdown_log(char * m1, float f1, char * m2, float f2);
-void cutdown_log(char * message, int32_t i1);
-void cutdown_log(char * message, uint32_t i1);
+void cutdown_log(Logger_Level_t level, char * message);
+void cutdown_log(Logger_Level_t level, char * message, float f1);
+void cutdown_log(Logger_Level_t level, char * m1, float f1, char * m2, float f2);
+void cutdown_log(Logger_Level_t level, char * message, int32_t i1);
+void cutdown_log(Logger_Level_t level, char * message, uint32_t i1);
 
 #endif

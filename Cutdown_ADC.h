@@ -16,7 +16,6 @@
 // MCP9700A thermistor constants
 #define THERM_OFFSET	    (0.58f)
 #define THERM_COEFFICIENT	(110.0f)
-#define TEMP_SETPOINT       (5.0f) // 5 C
 
 // General ADC constants
 #define REFERENCE_VOLTAGE	(2.23f)
@@ -70,7 +69,7 @@ public:
     ADC_Channel v_batt_pri;
     ADC_Channel v_batt_bck;
 private:
-    float last_temps[4] = {TEMP_SETPOINT, TEMP_SETPOINT, TEMP_SETPOINT, TEMP_SETPOINT};
+    float last_temps[4] = {0};
 };
 
 #endif

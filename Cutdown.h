@@ -62,6 +62,16 @@ public:
     // Public interface
     void init();
     void run();
+    
+    // Driver instances (public for testing purposes)
+    Cutdown_OLED oled;
+    Cutdown_ATtiny attiny;
+    Cutdown_ADC adc;
+    Cutdown_GPS gps;
+    Adafruit_MPL3115A2 baro;
+
+    // arm signal (public for testing purposes)
+    bool arm_signal();
 private:
     // State functions
     void unarmed(void);
@@ -84,27 +94,20 @@ private:
 		&Cutdown::finished
 	};
 
-    // Timer value
-    int32_t cutdown_timer;
-
     // Pressure holder
     float last_pressure;
 
-    // Driver instances
-    Cutdown_OLED oled;
-    Cutdown_ATtiny attiny;
-    Cutdown_ADC adc;
-    Cutdown_GPS gps;
-    Adafruit_MPL3115A2 baro;
-
     // Helper functions
-    inline bool arm_signal();
     bool check_batteries(bool critical_stage);
     bool gps_trigger();
     void gps_log();
     bool pressure_trigger();
     void pressure_log();
     void cycle_oled_info(bool cycle);
+    void decrement_timer(uint8_t seconds);
+    
+    // holds time of last config write to Flash-Emulated EEPROM
+    uint16_t last_fee_write;
 };
 
 #endif
