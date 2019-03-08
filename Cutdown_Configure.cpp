@@ -246,18 +246,18 @@ void display_menu(void)
     Serial.println("\n--- Config Menu ---\n"); delay(1);
     
     Serial.println("Command format: CMD,value"); delay(1);
-    Serial.println("TPRI,(int) primary timer"); delay(1);
-    Serial.println("TBCK,(int) backup timer"); delay(1);
-    Serial.println("HEIGHT,(float) cutdown height"); delay(1);
-    Serial.println("DIST,(float) cutown distance"); delay(1);
-    Serial.println("CEIL,(float) cutaway ceiling"); delay(1);
-    Serial.println("VCRIT,(float) critical voltage"); delay(1);
-    Serial.println("VLOW,(float) low voltage"); delay(1);
+    Serial.println("TPRI,(uint16) primary timer [s]"); delay(1);
+    Serial.println("TBCK,(uint16) backup timer [s]"); delay(1);
+    Serial.println("HEIGHT,(float) cutdown height [km]"); delay(1);
+    Serial.println("DIST,(float) cutown distance [km]"); delay(1);
+    Serial.println("CEIL,(float) cutaway ceiling [hPa]"); delay(1);
+    Serial.println("VCRIT,(float) critical (shutdown) voltage [V]"); delay(1);
+    Serial.println("VLOW,(float) low (warning) voltage [V]"); delay(1);
     Serial.println("MODE,(CUTDOWN/CUTAWAY)"); delay(1);
     Serial.println("SN,(int) serial number"); delay(1);
     Serial.println("LAT,(float) starting latitude (written upon arming)"); delay(1);
     Serial.println("LONG,(float) starting longitude (written upon arming)"); delay(1);
-    Serial.println("TEMP,(float) temperature set point"); delay(1);
+    Serial.println("TEMP,(float) temperature set point [C]"); delay(1);
     
     Serial.println("\nSpecial commands:"); delay(1);
     Serial.println("MENU (print menu)"); delay(1);
