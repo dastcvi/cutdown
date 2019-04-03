@@ -165,6 +165,43 @@ static bool process_command(void)
         return true;
     }
 
+    if (0 == (strcmp(command_buffer, CMD_FLY_VOLT))) {
+        if ((float_value = parse_float()) == 0.0f) return false;
+
+        cutdown_config.min_fly_voltage = float_value;
+        Serial.print("Set min fly voltage (V): ");
+        Serial.println(cutdown_config.min_fly_voltage);
+        return true;
+    }
+
+    if (0 == (strcmp(command_buffer, CMD_SQUIB_MODE))) {
+        if ((int_value = parse_int()) <= 0) return false;
+
+        if (int_value > 2) {
+            Serial.println("Invalid squib number, must be 1 or 2");
+            return false;
+        }
+
+        cutdown_config.squib_mode = (Squib_Mode_t) int_value;
+        Serial.print("Set squib number to: ");
+        Serial.println(cutdown_config.squib_mode);
+        return true;
+    }
+
+    if (0 == (strcmp(command_buffer, CMD_TRIGGER_SET))) {
+        if ((int_value = parse_int()) <= 0) return false;
+
+        if (int_value > 5) {
+            Serial.println("Invalid trigger type, must be 1-5");
+            return false;
+        }
+
+        cutdown_config.trigger_type = (Trigger_t) int_value;
+        Serial.print("Set trigger type to: ");
+        Serial.println(cutdown_config.trigger_type);
+        return true;
+    }
+
     if (0 == (strcmp(command_buffer, CMD_SYSTEM_MODE))) {
         if (0 == (strcmp(value_buffer, "cutdown")) || 0 == (strcmp(value_buffer, "CUTDOWN"))) {
             cutdown_config.system_mode = MODE_CUTDOWN;
@@ -253,11 +290,14 @@ void display_menu(void)
     Serial.println("CEIL,(float) cutaway ceiling [hPa]"); delay(1);
     Serial.println("VCRIT,(float) critical (shutdown) voltage [V]"); delay(1);
     Serial.println("VLOW,(float) low (warning) voltage [V]"); delay(1);
+    Serial.println("VFLY,(float) minimum ok to fly voltage [V]"); delay(1);
     Serial.println("MODE,(CUTDOWN/CUTAWAY)"); delay(1);
     Serial.println("SN,(int) serial number"); delay(1);
     Serial.println("LAT,(float) starting latitude (written upon arming)"); delay(1);
     Serial.println("LONG,(float) starting longitude (written upon arming)"); delay(1);
     Serial.println("TEMP,(float) temperature set point [C]"); delay(1);
+    Serial.println("SQUIBS,(1/2) number of squibs"); delay(1);
+    Serial.println("TRIG,(1-5) trigger result"); delay(1);
     
     Serial.println("\nSpecial commands:"); delay(1);
     Serial.println("MENU (print menu)"); delay(1);
@@ -282,12 +322,15 @@ void display_fee(void)
     Serial.print("Trigger height: "); Serial.println(cutdown_config.trigger_height); delay(1);
     Serial.print("Trigger distance: "); Serial.println(cutdown_config.trigger_distance); delay(1);
     Serial.print("Cutaway ceiling: "); Serial.println(cutdown_config.cutaway_ceiling); delay(1);
+    Serial.print("Fly voltage: "); Serial.println(cutdown_config.min_fly_voltage); delay(1);
     Serial.print("Low voltage: "); Serial.println(cutdown_config.low_batt_voltage); delay(1);
     Serial.print("Crit voltage: "); Serial.println(cutdown_config.critical_batt_voltage); delay(1);
     Serial.print("Latitude: "); Serial.println(cutdown_config.origin_lat); delay(1);
     Serial.print("Longitude: "); Serial.println(cutdown_config.origin_long); delay(1);
     Serial.print("Temp set point: "); Serial.println(cutdown_config.temp_set_point); delay(1);
     Serial.print("Ceiling reached?: "); Serial.println(cutdown_config.ceiling_reached); delay(1);
+    Serial.print("Squib mode: "); Serial.println(cutdown_config.squib_mode); delay(1);
+    Serial.print("Trigger result: "); Serial.println(cutdown_config.trigger_type); delay(1);
     Serial.print("Mode: ");
     if (cutdown_config.system_mode == MODE_CUTDOWN) {
         Serial.println("CUTDOWN");

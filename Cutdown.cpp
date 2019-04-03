@@ -97,6 +97,13 @@ Cutdown::Cutdown()
     state = ST_UNARMED;
     last_pressure = 1000.0f;
     last_fee_write = 65000; // will be overwritten
+    bool squibs_ok = false;
+    bool tpri_ok = false;
+    bool tbck_ok = false;
+    bool gps_ok = false;
+    bool pressure_ok = false;
+    bool batt_ok = false;
+    bool temp_ok = false;
 }
 
 
@@ -251,6 +258,7 @@ void Cutdown::unarmed(void)
 
             adc.thermal_control();
             pressure_log();
+            gps.update_fix();
 
             if (!check_batteries(false)) {
                 oled.write_line(" !Low Battery!  ", LINE2);
@@ -419,6 +427,7 @@ void Cutdown::cutdown(void)
         // check the timer trigger
         if (cutdown_config.primary_timer_remaining <= 0) {
             trigger_met = true;
+            cutdown_config.trigger_type = TRIG_TIMER;
             cutdown_log(LOG_INFO, "Timer met: %d", (uint32_t) cutdown_config.primary_timer_remaining);
         }
 
@@ -486,6 +495,7 @@ void Cutdown::cutaway(void)
         // check the timer trigger
         if (cutdown_config.primary_timer_remaining <= 0) {
             trigger_met = true;
+            cutdown_config.trigger_type = TRIG_TIMER;
             cutdown_log(LOG_INFO, "Timer met: %d", (uint32_t) cutdown_config.primary_timer_remaining);
         }
 
@@ -643,6 +653,7 @@ bool Cutdown::check_batteries(bool critical_stage)
     float batt2 = adc.v_batt_bck.read();
     bool critical = false;
     bool nominal = true;
+    bool fly_voltage = true;
 
     cutdown_log(LOG_DEBUG, "b1 ", batt1, ", b2 ", batt2);
 
@@ -650,8 +661,12 @@ bool Cutdown::check_batteries(bool critical_stage)
         if (batt1 < cutdown_config.critical_batt_voltage) {
             critical = true;
             nominal = false;
+            fly_voltage = false;
         } else if (batt1 < cutdown_config.low_batt_voltage) {
             nominal = false;
+            fly_voltage = false;
+        } else if (batt1 < cutdown_config.min_fly_voltage) {
+            fly_voltage = false;
         }
     }
 
@@ -659,10 +674,18 @@ bool Cutdown::check_batteries(bool critical_stage)
         if (batt2 < cutdown_config.critical_batt_voltage) {
             critical &= true; // only critical if both are critical
             nominal = false;
+            fly_voltage = false;
         } else if (batt2 < cutdown_config.low_batt_voltage) {
+            critical = false;
             nominal = false;
+            fly_voltage = false;
+        } else if (batt2 < cutdown_config.min_fly_voltage) {
+            critical = false;
+            fly_voltage = false;
         }
     }
+
+    batt_ok = fly_voltage;
 
     if (critical) {
         cutdown_log(LOG_ERROR, "Critical battery, power down");
@@ -679,22 +702,30 @@ bool Cutdown::gps_trigger()
 
     // only check the trigger with a valid, new 3-D fix
     if (FIX_3D != gps.update_fix()) {
+        gps_ok = false;
         cutdown_log(LOG_DEBUG, "no gps fix");
         gps.gps_data.height = GPS_INVALID_FLOAT;
         gps.gps_data.displacement = GPS_INVALID_FLOAT;
         return false;
     }
 
+    gps_ok = true;
     cutdown_log(LOG_DEBUG, "lat ", gps.gps_data.latitude, ", long ", gps.gps_data.longitude);
     cutdown_log(LOG_DEBUG, "height ", gps.gps_data.height);
 
     // see if we've reached the height trigger
-    if (gps.gps_data.height >= cutdown_config.trigger_height) return true;
+    if (gps.gps_data.height >= cutdown_config.trigger_height) {
+        cutdown_config.trigger_type = TRIG_GPSH;
+        return true;
+    }
 
     // see if we've reached the distance trigger
     dist = gps.distance_from(cutdown_config.origin_lat, cutdown_config.origin_long);
     cutdown_log(LOG_DEBUG, "dist ", dist);
-    if (dist >= cutdown_config.trigger_distance) return true;
+    if (dist >= cutdown_config.trigger_distance) {
+        cutdown_config.trigger_type = TRIG_GPSD;
+        return true;
+    }
 
     return false;
 }
@@ -704,12 +735,14 @@ void Cutdown::gps_log()
 {
     // only check the trigger with a valid, new 3-D fix
     if (FIX_3D != gps.update_fix()) {
+        gps_ok = false;
         cutdown_log(LOG_DEBUG, "no gps fix");
         gps.gps_data.height = GPS_INVALID_FLOAT;
         gps.gps_data.displacement = GPS_INVALID_FLOAT;
         return;
     }
 
+    gps_ok = true;
     cutdown_log(LOG_DEBUG, "lat ", gps.gps_data.latitude, ", long ", gps.gps_data.longitude);
     cutdown_log(LOG_DEBUG, "height ", gps.gps_data.height);
 }
@@ -727,10 +760,13 @@ bool Cutdown::pressure_trigger()
     last_pressure = baro.getPressure() / 100.0f;
     cutdown_log(LOG_DEBUG, "press ", last_pressure);
     
+    // ok for launch if below ceiling and reasonable value
+    pressure_ok = (last_pressure < 1050.0f && last_pressure > cutdown_config.cutaway_ceiling);
+    
     // add to the last 10 pressures
     last_pressures[pressure_index] = last_pressure;
     pressure_index = (pressure_index + 1) % 10;
-    
+
     // log this sensor's temperature reading too
     mpl_temp = baro.getTemperature();
     cutdown_log(LOG_DEBUG, "temp2 ", mpl_temp);
@@ -753,6 +789,7 @@ bool Cutdown::pressure_trigger()
     
         // if running average and last pressure are within 1 hPa, trigger
         if (last_pressure - running_avg < 1.0f && last_pressure - running_avg > -1.0f) {
+            cutdown_config.trigger_type = TRIG_ALT;
             return true;
         }
     }
@@ -767,6 +804,9 @@ void Cutdown::pressure_log(void)
 
     last_pressure = baro.getPressure() / 100.0f;
     mpl_temp = baro.getTemperature();
+    
+    // ok for launch if below ceiling and reasonable value
+    pressure_ok = (last_pressure < 1050.0f && last_pressure > cutdown_config.cutaway_ceiling);
 
     cutdown_log(LOG_DEBUG, "press ", last_pressure);
     cutdown_log(LOG_DEBUG, "temp2 ", mpl_temp);
@@ -779,13 +819,14 @@ void Cutdown::cycle_oled_info(bool cycle)
     static char line2[17] = "";
     static uint8_t cycle_count = OI_NUM_INFO-1;
     uint16_t backup_timer = 0;
+    bool ok_to_fly = true;
+    
+    // clear for the new info
+    oled.clear();
     
     if (cycle) {
         // update the number
         cycle_count = (++cycle_count) % OI_NUM_INFO;
-
-        // clear for the new info
-        oled.clear();
     }
 
     switch (cycle_count) {
@@ -796,6 +837,7 @@ void Cutdown::cycle_oled_info(bool cycle)
         snprintf(line2, 17, "PRI: ");
         print_time(line2+5, (uint16_t) cutdown_config.primary_timer_remaining);
         oled.write_line(line2, LINE2);
+        tpri_ok = (cutdown_config.primary_timer_remaining > 0 && cutdown_config.primary_timer_remaining <= cutdown_config.primary_timer);
         break;
     case OI_TBCK:
         backup_timer = attiny.read_timer();
@@ -805,6 +847,7 @@ void Cutdown::cycle_oled_info(bool cycle)
         snprintf(line2, 17, "BCK: ");
         print_time(line2+5, (uint16_t) backup_timer);
         oled.write_line(line2, LINE2);
+        tbck_ok = (backup_timer > 0 && backup_timer <= cutdown_config.backup_timer);
         break;
     case OI_SQUIB_PRI:
         if (check_squib(adc.squib_pri.read())) {
@@ -812,7 +855,13 @@ void Cutdown::cycle_oled_info(bool cycle)
             if (cycle) {
                 cutdown_log(LOG_DEBUG, "PRI Squib OK");
             }
+            if (cutdown_config.squib_mode == ONE_SQUIB) {
+                squibs_ok = true;
+            } else {
+                squibs_ok = check_squib(adc.squib_bck.read());
+            }
         } else {
+            squibs_ok = false;
             oled.write_line("PRI squib error!", LINE2);
             if (cycle) {
                 cutdown_log(LOG_DEBUG, "PRI squib error!");
@@ -850,7 +899,7 @@ void Cutdown::cycle_oled_info(bool cycle)
         break;
     case OI_DISTANCE:
         if (gps.gps_data.displacement == GPS_INVALID_FLOAT) {
-            oled.write_line("No GPS solution", LINE2);
+            oled.write_line("Origin not set", LINE2);
         } else {
             line2_str = "CurD: ";
             line2_str += String(gps.gps_data.displacement);
@@ -896,9 +945,28 @@ void Cutdown::cycle_oled_info(bool cycle)
         line2_str = String(calculate_temperature(adc.thermistor.check()));
         line2_str += " C";
         oled.write_line((char *) line2_str.c_str(), LINE2);
+        if (calculate_temperature(adc.thermistor.check()) < cutdown_config.temp_set_point - 5.0f) {
+            temp_ok = false;
+        } else {
+            temp_ok = true;
+        }
         break;
     default:
         break;
+    }
+
+    if (!cycle) {
+        if (cutdown_config.system_mode == MODE_CUTDOWN) {
+            ok_to_fly = squibs_ok & tpri_ok & tbck_ok & gps_ok & batt_ok & temp_ok;
+        } else {
+            ok_to_fly = squibs_ok & tpri_ok & tbck_ok & pressure_ok & batt_ok & temp_ok;
+        }
+
+        if (ok_to_fly) {
+            oled.write_line("READY to fly", LINE1);
+        } else {
+            oled.write_line("NOT READY to fly", LINE1);
+        }
     }
 }
 

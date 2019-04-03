@@ -16,28 +16,32 @@
 #define LARAMIE_LONGITUDE       -105.660194
 #define MCMURDO_LATITUDE        -77.848943
 #define MCMURDO_LONGITUDE       166.661243
+#define PAWNEE_LATITUDE         40.768439
+#define PAWNEE_LONGITUDE        -104.638230
 
 // -------- CHANGE CONFIGS HERE --------
-#define SERIAL_NUMBER           1
+#define SERIAL_NUMBER           122
 
-#define SYSTEM_MODE             MODE_CUTAWAY
+#define SYSTEM_MODE             MODE_CUTDOWN
+#define SQUIB_MODE              ONE_SQUIB
 
 #define CUTAWAY_TIMER           18000 // s (5 hours)
 #define CUTAWAY_BACKUP_TIMER    18300 // s (5 hours 5 minutes)
 
-#define CUTDOWN_TIMER           7200  // s (2 hours)
-#define CUTDOWN_BACKUP_TIMER    7500  // s (2 hours 5 minutes)
+#define CUTDOWN_TIMER           7200  // s (>18 hours)
+#define CUTDOWN_BACKUP_TIMER    7500  // s (>18 hours)
 
 #define CUTDOWN_HEIGHT          30.0  // km
 #define CUTDOWN_DISTANCE        100.0 // km
 
 #define CUTAWAY_CEILING         700   // hPA ~= 10k ft ~= 3 km
 
+#define FLY_VOLTAGE_SETPOINT    11.8  // V
 #define LOW_VOLTAGE_SETPOINT    11.1  // V
 #define CRIT_VOLTAGE_SETPOINT   10.6  // V
 
-#define DEFAULT_LATITUDE        LARAMIE_LATITUDE
-#define DEFAULT_LONGITUDE       LARAMIE_LONGITUDE
+#define DEFAULT_LATITUDE        MCMURDO_LATITUDE
+#define DEFAULT_LONGITUDE       MCMURDO_LONGITUDE
 
 #define DEFAULT_TEMP_SETPOINT   5.0 // C
 // -------------------------------------
@@ -71,6 +75,7 @@ bool write_config(void)
     cutdown_config.trigger_distance = CUTDOWN_DISTANCE;
     cutdown_config.cutaway_ceiling = CUTAWAY_CEILING;
 
+    cutdown_config.min_fly_voltage = FLY_VOLTAGE_SETPOINT;
     cutdown_config.low_batt_voltage = LOW_VOLTAGE_SETPOINT;
     cutdown_config.critical_batt_voltage = CRIT_VOLTAGE_SETPOINT;
 
@@ -78,6 +83,8 @@ bool write_config(void)
     cutdown_config.origin_long = DEFAULT_LONGITUDE;
 
     cutdown_config.temp_set_point = DEFAULT_TEMP_SETPOINT;
+    cutdown_config.squib_mode = SQUIB_MODE;
+    cutdown_config.trigger_type = TRIG_NONE;
     cutdown_config.ceiling_reached = false;
 
     Serial.println("Writing config to FEE");
@@ -116,6 +123,9 @@ bool write_config(void)
     success &= (config_compare.cutaway_ceiling == cutdown_config.cutaway_ceiling);
     Serial.print("Cutaway ceiling: "); Serial.println(cutdown_config.cutaway_ceiling);
 
+    success &= (config_compare.min_fly_voltage == cutdown_config.min_fly_voltage);
+    Serial.print("Min fly voltage: "); Serial.println(cutdown_config.min_fly_voltage);
+
     success &= (config_compare.low_batt_voltage == cutdown_config.low_batt_voltage);
     Serial.print("Low voltage: "); Serial.println(cutdown_config.low_batt_voltage);
 
@@ -133,6 +143,12 @@ bool write_config(void)
 
     success &= (config_compare.ceiling_reached == cutdown_config.ceiling_reached);
     Serial.print("Ceiling reached: "); Serial.println(cutdown_config.ceiling_reached);
+
+    success &= (config_compare.squib_mode == cutdown_config.squib_mode);
+    Serial.print("Squibs: "); Serial.println(cutdown_config.squib_mode);
+
+    success &= (config_compare.trigger_type == cutdown_config.trigger_type);
+    Serial.print("Trigger result: "); Serial.println(cutdown_config.trigger_type);
 
     success &= (config_compare.system_mode == cutdown_config.system_mode);
     Serial.print("Mode: ");
@@ -258,7 +274,7 @@ void commission_loop(void)
 {
     if (commission_cutdown.arm_signal()) {
         Serial.println("System switched to armed");
-        delay(1000);
+        delay(10000);
         Serial.println("Firing pri squib in 1 s");
         delay(1000);
         digitalWrite(SQUIB_PRI_GATE, HIGH);

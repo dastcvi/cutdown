@@ -106,6 +106,15 @@ private:
     void cycle_oled_info(bool cycle);
     void decrement_timer(uint8_t seconds);
     
+    // ready-for-flight checks
+    bool squibs_ok;
+    bool tpri_ok;
+    bool tbck_ok;
+    bool gps_ok;
+    bool pressure_ok;
+    bool batt_ok;
+    bool temp_ok;
+
     // holds time of last config write to Flash-Emulated EEPROM
     uint16_t last_fee_write;
 };
