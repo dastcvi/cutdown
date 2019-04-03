@@ -10,7 +10,7 @@
 
 #include <stdint.h>
 
-#define CURRENT_CONFIG_VERSION  0xA5C90008
+#define CURRENT_CONFIG_VERSION  0xA5C90009
 
 #define Serial SERIAL_PORT_USBVIRTUAL
 
@@ -28,6 +28,8 @@
 #define CMD_LATITUDE         "LAT"
 #define CMD_LONGITUDE        "LONG"
 #define CMD_TEMP_SETPOINT    "TEMP"
+#define CMD_BURST_RATE       "BURST"
+#define CMD_SINK_SAMPLES     "SINK"
 #define CMD_SQUIB_MODE       "SQUIBS"
 #define CMD_TRIGGER_SET      "TRIG"
 #define CMD_MENU             "MENU"
@@ -48,7 +50,9 @@ typedef enum : uint8_t {
     TRIG_TIMER = 2,
     TRIG_GPSH = 3,
     TRIG_GPSD = 4,
-    TRIG_ALT = 5
+    TRIG_ALT = 5,
+    TRIG_BURST = 6,
+    TRIG_SINK = 7
 } Trigger_t;
 
 /* Important notes:
@@ -85,6 +89,9 @@ typedef struct {
     float origin_long;
     // thermal control
     float temp_set_point;
+    // burst/floater detection
+    float burst_fall_rate;
+    uint16_t sink_num_samples;
     // mode of operation
     Cutdown_Mode_t system_mode;
     Squib_Mode_t squib_mode;

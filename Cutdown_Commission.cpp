@@ -20,9 +20,9 @@
 #define PAWNEE_LONGITUDE        -104.638230
 
 // -------- CHANGE CONFIGS HERE --------
-#define SERIAL_NUMBER           122
+#define SERIAL_NUMBER           120
 
-#define SYSTEM_MODE             MODE_CUTDOWN
+#define SYSTEM_MODE             MODE_CUTAWAY
 #define SQUIB_MODE              ONE_SQUIB
 
 #define CUTAWAY_TIMER           18000 // s (5 hours)
@@ -42,6 +42,9 @@
 
 #define DEFAULT_LATITUDE        MCMURDO_LATITUDE
 #define DEFAULT_LONGITUDE       MCMURDO_LONGITUDE
+
+#define BURST_FALL_RATE         10.0  // m/s
+#define SINK_NUM_SAMPLES        10    // 10 samples at 0.5 Hz
 
 #define DEFAULT_TEMP_SETPOINT   5.0 // C
 // -------------------------------------
@@ -83,6 +86,8 @@ bool write_config(void)
     cutdown_config.origin_long = DEFAULT_LONGITUDE;
 
     cutdown_config.temp_set_point = DEFAULT_TEMP_SETPOINT;
+    cutdown_config.burst_fall_rate = BURST_FALL_RATE;
+    cutdown_config.sink_num_samples = SINK_NUM_SAMPLES;
     cutdown_config.squib_mode = SQUIB_MODE;
     cutdown_config.trigger_type = TRIG_NONE;
     cutdown_config.ceiling_reached = false;
@@ -140,6 +145,12 @@ bool write_config(void)
 
     success &= (config_compare.temp_set_point == cutdown_config.temp_set_point);
     Serial.print("Temp set point: "); Serial.println(cutdown_config.temp_set_point);
+
+    success &= (config_compare.burst_fall_rate == cutdown_config.burst_fall_rate);
+    Serial.print("Burst fall rate: "); Serial.println(cutdown_config.burst_fall_rate);
+
+    success &= (config_compare.sink_num_samples == cutdown_config.sink_num_samples);
+    Serial.print("Sink num samples: "); Serial.println(cutdown_config.sink_num_samples);
 
     success &= (config_compare.ceiling_reached == cutdown_config.ceiling_reached);
     Serial.print("Ceiling reached: "); Serial.println(cutdown_config.ceiling_reached);

@@ -191,8 +191,8 @@ static bool process_command(void)
     if (0 == (strcmp(command_buffer, CMD_TRIGGER_SET))) {
         if ((int_value = parse_int()) <= 0) return false;
 
-        if (int_value > 5) {
-            Serial.println("Invalid trigger type, must be 1-5");
+        if (int_value > 7) {
+            Serial.println("Invalid trigger type, must be 1-7");
             return false;
         }
 
@@ -264,6 +264,24 @@ static bool process_command(void)
         return true;
     }
 
+    if (0 == (strcmp(command_buffer, CMD_BURST_RATE))) {
+        if ((float_value = parse_float()) <= 0.0f) return false;
+
+        cutdown_config.burst_fall_rate = float_value;
+        Serial.print("Set burst fall rate (m/s): ");
+        Serial.println(cutdown_config.burst_fall_rate);
+        return true;
+    }
+
+    if (0 == (strcmp(command_buffer, CMD_SINK_SAMPLES))) {
+        if ((int_value = parse_int()) <= 0) return false;
+
+        cutdown_config.sink_num_samples = (uint16_t) int_value;
+        Serial.print("Set num sink samples: ");
+        Serial.println(cutdown_config.sink_num_samples);
+        return true;
+    }
+
     if (0 == (strcmp(command_buffer, CMD_MENU))) {
         display_menu();
         return false;
@@ -296,8 +314,10 @@ void display_menu(void)
     Serial.println("LAT,(float) starting latitude (written upon arming)"); delay(1);
     Serial.println("LONG,(float) starting longitude (written upon arming)"); delay(1);
     Serial.println("TEMP,(float) temperature set point [C]"); delay(1);
+    Serial.println("BURST,(float) fall rate for burst condition [m/s]"); delay(1);
+    Serial.println("SINK,(uint16) number of sequential sinking altitudes for sink condition"); delay(1);
     Serial.println("SQUIBS,(1/2) number of squibs"); delay(1);
-    Serial.println("TRIG,(1-5) trigger result"); delay(1);
+    Serial.println("TRIG,(1-7) trigger result"); delay(1);
     
     Serial.println("\nSpecial commands:"); delay(1);
     Serial.println("MENU (print menu)"); delay(1);
@@ -316,18 +336,20 @@ void display_fee(void)
     Serial.println("\n--- FEE Contents ---");
     Serial.print("Version: 0x"); Serial.println(cutdown_config.config_version, HEX); delay(1);
     Serial.print("Serial #: "); Serial.println(cutdown_config.serial_number); delay(1);
-    Serial.print("Primary timer: "); Serial.println(cutdown_config.primary_timer); delay(1);
-    Serial.print("Remaining primary timer: "); Serial.println(cutdown_config.primary_timer_remaining); delay(1);
-    Serial.print("Backup timer: "); Serial.println(cutdown_config.backup_timer); delay(1);
-    Serial.print("Trigger height: "); Serial.println(cutdown_config.trigger_height); delay(1);
-    Serial.print("Trigger distance: "); Serial.println(cutdown_config.trigger_distance); delay(1);
-    Serial.print("Cutaway ceiling: "); Serial.println(cutdown_config.cutaway_ceiling); delay(1);
-    Serial.print("Fly voltage: "); Serial.println(cutdown_config.min_fly_voltage); delay(1);
-    Serial.print("Low voltage: "); Serial.println(cutdown_config.low_batt_voltage); delay(1);
-    Serial.print("Crit voltage: "); Serial.println(cutdown_config.critical_batt_voltage); delay(1);
+    Serial.print("Primary timer: "); Serial.print(cutdown_config.primary_timer); Serial.println(" s"); delay(1);
+    Serial.print("Remaining primary timer: "); Serial.print(cutdown_config.primary_timer_remaining); Serial.println(" s"); delay(1);
+    Serial.print("Backup timer: "); Serial.print(cutdown_config.backup_timer); Serial.println(" s"); delay(1);
+    Serial.print("Trigger height: "); Serial.print(cutdown_config.trigger_height); Serial.println(" km"); delay(1);
+    Serial.print("Trigger distance: "); Serial.print(cutdown_config.trigger_distance); Serial.println(" km"); delay(1);
+    Serial.print("Cutaway ceiling: "); Serial.print(cutdown_config.cutaway_ceiling); Serial.println(" hPa"); delay(1);
+    Serial.print("Fly voltage: "); Serial.print(cutdown_config.min_fly_voltage); Serial.println(" V"); delay(1);
+    Serial.print("Low voltage: "); Serial.print(cutdown_config.low_batt_voltage); Serial.println(" V"); delay(1);
+    Serial.print("Crit voltage: "); Serial.print(cutdown_config.critical_batt_voltage); Serial.println(" V"); delay(1);
     Serial.print("Latitude: "); Serial.println(cutdown_config.origin_lat); delay(1);
     Serial.print("Longitude: "); Serial.println(cutdown_config.origin_long); delay(1);
-    Serial.print("Temp set point: "); Serial.println(cutdown_config.temp_set_point); delay(1);
+    Serial.print("Temp set point: "); Serial.print(cutdown_config.temp_set_point); Serial.println(" C"); delay(1);
+    Serial.print("Burst fall rate: "); Serial.print(cutdown_config.burst_fall_rate); Serial.println(" m/s"); delay(1);
+    Serial.print("Sink num samples: "); Serial.println(cutdown_config.sink_num_samples); delay(1);
     Serial.print("Ceiling reached?: "); Serial.println(cutdown_config.ceiling_reached); delay(1);
     Serial.print("Squib mode: "); Serial.println(cutdown_config.squib_mode); delay(1);
     Serial.print("Trigger result: "); Serial.println(cutdown_config.trigger_type); delay(1);

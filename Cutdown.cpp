@@ -404,7 +404,7 @@ void Cutdown::cutdown(void)
             oled.write_line("Armed: Cutdown", LINE1);
 
             adc.thermal_control();
-            //pressure_log(); // REMOVED: pressure driver is blocking, could cause issue
+            //pressure_log(); // REMOVED: pressure driver is blocking, not needed for cutdown
 
             if (!check_batteries(true)) {
                 oled.write_line(" !Low Battery!  ", LINE2);
@@ -640,11 +640,13 @@ void Cutdown::finished(void)
     wait_timer(5);
 }
 
+
 // true if armed, false if not
 bool Cutdown::arm_signal(void)
 {
     return (digitalRead(SYSTEM_ARM_N) == LOW);
 }
+
 
 // returns false if low battery, powers the system down if both critical and !critical_stage
 bool Cutdown::check_batteries(bool critical_stage)
@@ -696,9 +698,17 @@ bool Cutdown::check_batteries(bool critical_stage)
 }
 
 
+// must be run at 0.5 Hz for burst trigger
 bool Cutdown::gps_trigger()
 {
+    static float oldest_height = 0.0f; // two heights ago
+    static float last_height = 0.0f;
+    static uint16_t num_sinking = 0;
     float dist = 0.0f;
+
+    // cycle the heights before getting a new one
+    oldest_height = last_height;
+    last_height = gps.gps_data.height;
 
     // only check the trigger with a valid, new 3-D fix
     if (FIX_3D != gps.update_fix()) {
@@ -725,6 +735,28 @@ bool Cutdown::gps_trigger()
     if (dist >= cutdown_config.trigger_distance) {
         cutdown_config.trigger_type = TRIG_GPSD;
         return true;
+    }
+
+    // before checking burst and sink, ensure we're above 3 km and have valid readings
+    if (gps.gps_data.height > 3.0 && last_height != GPS_INVALID_FLOAT && oldest_height != GPS_INVALID_FLOAT) {
+        // see if we've reached the burst trigger (burst rate multiplied by two since measurements are at 0.5 Hz)
+        // heights are multiplied by 1000 to convert from km to m
+        if ((oldest_height - last_height)*1000.0 > (2*cutdown_config.burst_fall_rate) 
+        && (last_height - gps.gps_data.height)*1000.0 > (2*cutdown_config.burst_fall_rate)) {
+            cutdown_config.trigger_type = TRIG_BURST;
+            return true;
+        }
+        
+        // check if we're sinking and if the trigger has been met
+        if (last_height > gps.gps_data.height) {
+            num_sinking++;
+            if (num_sinking >= cutdown_config.sink_num_samples) {
+                cutdown_config.trigger_type = TRIG_SINK;
+                return true;
+            }
+        } else {
+            num_sinking = 0;
+        }
     }
 
     return false;
@@ -969,6 +1001,7 @@ void Cutdown::cycle_oled_info(bool cycle)
         }
     }
 }
+
 
 void Cutdown::decrement_timer(uint8_t seconds)
 {
