@@ -8,7 +8,7 @@
 #ifndef CUTDOWN_OLED_H
 #define CUTDOWN_OLED_H
 
-#include "Cutdown_Pinout.h"
+#include "Cutdown_Pinout_RevB.h"
 #include "Arduino.h"
 #include "SERCOM.h"
 #include "SPI.h"

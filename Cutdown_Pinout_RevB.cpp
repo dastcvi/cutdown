@@ -5,22 +5,22 @@
  * Implements the necessary cutdown pinmux
  */
 
-#include "Cutdown_Pinout.h"
+#include "Cutdown_Pinout_RevB.h"
 
 void cutdown_pinmux(void)
 {
     /* arming and firing setup */
-    pinMode(SYSTEM_ARM, INPUT);
-    pinMode(SQUIB1_GATE, OUTPUT);
-    digitalWrite(SQUIB1_GATE, LOW);
-    pinMode(SQUIB2_GATE, OUTPUT);
-    digitalWrite(SQUIB2_GATE, LOW);
-    pinMode(SQUIB_FIRED, OUTPUT);
-    digitalWrite(SQUIB_FIRED, LOW);
+    pinMode(SYSTEM_ARM_N, INPUT);
+    pinMode(SQUIB_PRI_GATE, OUTPUT);
+    digitalWrite(SQUIB_PRI_GATE, LOW);
+    pinMode(SQUIB_BCK_GATE, OUTPUT);
+    digitalWrite(SQUIB_BCK_GATE, LOW);
     pinMode(POWER_OFF, OUTPUT);
     digitalWrite(POWER_OFF, LOW);
     pinMode(HEATER_GATE, OUTPUT);
     digitalWrite(HEATER_GATE, LOW);
+    pinMode(BUZZER, OUTPUT);
+    digitalWrite(BUZZER, LOW);
 }
 
 void cutdown_poweroff(void)

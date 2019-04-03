@@ -7,6 +7,7 @@
 
 #include "Cutdown_ADC.h"
 #include "Cutdown_Logger.h"
+#include "Cutdown_Configure.h"
 
 // returns the temperature in celsius given the MCP9700A thermistor voltage
 float calculate_temperature(float voltage)
@@ -48,37 +49,51 @@ float ADC_Channel::check(void)
 
 // Cutdown_ADC methods ------------------------------------------
 Cutdown_ADC::Cutdown_ADC() :
-    thermistor (0.0f,  THERM_DIVIDE,  THERMISTOR),
-    squib1     (0.0f,  SQUIB1_DIVIDE, VMON_SQUIB1),
-    squib2     (0.0f,  SQUIB1_DIVIDE, VMON_SQUIB2),
-    v_3v3a     (3.3f,  V3V3A_DIVIDE,  VMON_3V3A),
-    v_3v3b     (3.3f,  V3V3B_DIVIDE,  VMON_3V3B),
-    v_batt1    (12.0f, VBATT1_DIVIDE, VMON_BATT1),  // needs to start above low-battery threshold
-    v_batt2    (12.0f, VBATT2_DIVIDE, VMON_BATT2),  // needs to start above low-battery threshold
-    v_batt     (12.0f, VBATT_DIVIDE,  VMON_VBATT)   // needs to start above low-battery threshold
+    thermistor  (0.0f,  THERM_DIVIDE, THERMISTOR),
+    squib_pri   (0.0f,  SQUIB_DIVIDE, VMON_SQUIB_PRI),
+    squib_bck   (0.0f,  SQUIB_DIVIDE, VMON_SQUIB_BCK),
+    v_batt_pri  (12.0f, VBATT_DIVIDE, VMON_BATT_PRI),  // needs to start above low-battery threshold
+    v_batt_bck  (12.0f, VBATT_DIVIDE, VMON_BATT_BCK)   // needs to start above low-battery threshold
 { }
 
 void Cutdown_ADC::init(void)
 {
     analogReference(AR_INTERNAL2V23); // internal 2.23V reference
     analogReadResolution(12); // 12-bit resolution
+    last_temps[0] = cutdown_config.temp_set_point;
+    last_temps[1] = cutdown_config.temp_set_point;
+    last_temps[2] = cutdown_config.temp_set_point;
+    last_temps[3] = cutdown_config.temp_set_point;
 }
 
 // TODO: add hysteresis!
 void Cutdown_ADC::thermal_control(void)
 {
     static bool heating = false;
+    static uint8_t temp_num = 0;
+
+    // get a new reading
     float temp = calculate_temperature(thermistor.read());
+    cutdown_log(LOG_DEBUG, "temp ", temp);
+    cutdown_log(LOG_DEBUG, "volt ", thermistor.check());
 
-    cutdown_log("temp ", temp);
+    // store the new temp in the circular bufferred array
+    last_temps[temp_num] = temp;
+    temp_num = (temp_num + 1) % 4;
 
-    if (TEMP_SETPOINT > temp && !heating) {
+    // update the running average
+    float avg_temp = 0.0f;
+    for (int i = 0; i < 4; i++) avg_temp += last_temps[i];
+    avg_temp /= 4;
+
+    // check if the heater state should change
+    if (cutdown_config.temp_set_point > avg_temp && !heating) {
         digitalWrite(HEATER_GATE, HIGH);
-        cutdown_log("Heater on");
+        cutdown_log(LOG_DEBUG, "Heater on");
         heating = true;
-    } else if (TEMP_SETPOINT < temp && heating) {
+    } else if (cutdown_config.temp_set_point < avg_temp && heating) {
         digitalWrite(HEATER_GATE, LOW);
-        cutdown_log("Heater off");
+        cutdown_log(LOG_DEBUG, "Heater off");
         heating = false;
     }
 }
