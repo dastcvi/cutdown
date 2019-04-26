@@ -97,11 +97,12 @@ Cutdown::Cutdown()
     state = ST_UNARMED;
     last_pressure = 1000.0f;
     last_fee_write = 65000; // will be overwritten
+    backup_timer = 65000; // will be overwritten
+    bool gps_ok = false;
     bool squibs_ok = false;
+    bool pressure_ok = false;
     bool tpri_ok = false;
     bool tbck_ok = false;
-    bool gps_ok = false;
-    bool pressure_ok = false;
     bool batt_ok = false;
     bool temp_ok = false;
 }
@@ -173,6 +174,7 @@ void Cutdown::init(void)
     }
 
     Watchdog.reset();
+    backup_timer = attiny.read_timer();
 
     cutdown_log(LOG_INFO, "Initialized");
 }
@@ -245,17 +247,17 @@ void Cutdown::unarmed(void)
     // wait to be armed, while checking for config updates
     while (!arm_signal()) {
         Watchdog.reset();
+        
+        // get new OLED info
+        cycle_oled_info();
+        if (cutdown_config.system_mode == MODE_CUTAWAY) {
+            oled.write_line("CUTAWAY UNARMED", LINE1);
+        } else {
+            oled.write_line("CUTDOWN UNARMED", LINE1);
+        }
 
         // different operation every other loop
         if (loop_toggle) {
-            // get new OLED info
-            cycle_oled_info(true);
-            if (cutdown_config.system_mode == MODE_CUTAWAY) {
-                oled.write_line("CUTAWAY UNARMED", LINE1);
-            } else {
-                oled.write_line("CUTDOWN UNARMED", LINE1);
-            }
-
             adc.thermal_control();
             pressure_log();
             gps.update_fix();
@@ -264,9 +266,6 @@ void Cutdown::unarmed(void)
                 oled.write_line(" !Low Battery!  ", LINE2);
             }
         } else {
-            // update current oled info
-            cycle_oled_info(false);
-
             // check for new config messages
             config_check_serial();
 
@@ -322,16 +321,14 @@ void Cutdown::arm(void)
 
     while (!gps_locked) {
         Watchdog.reset();
+        cycle_oled_info();
+        if (cutdown_config.system_mode == MODE_CUTAWAY) {
+            oled.write_line("CUTAWAY GPS WAIT", LINE1);
+        } else {
+            oled.write_line("CUTDOWN GPS WAIT", LINE1);
+        }
         
         if (loop_toggle) {
-            // get new oled info
-            cycle_oled_info(true);
-            if (cutdown_config.system_mode == MODE_CUTAWAY) {
-                oled.write_line("CUTAWAY GPS WAIT", LINE1);
-            } else {
-                oled.write_line("CUTDOWN GPS WAIT", LINE1);
-            }
-
             adc.thermal_control();
             pressure_log();
 
@@ -339,9 +336,6 @@ void Cutdown::arm(void)
                 oled.write_line(" !Low Battery!  ", LINE2);
             }
         } else {
-            // update current oled info
-            cycle_oled_info(false);
-
             // read the GPS and check for a fix
             gps_locked = (FIX_3D == gps.update_fix());
         }
@@ -397,12 +391,9 @@ void Cutdown::cutdown(void)
     // wait for a trigger or to be unarmed
     while (!trigger_met) {
         Watchdog.reset();
+        cycle_oled_armed();
 
         if (loop_toggle) {
-            // get new oled info
-            cycle_oled_info(true);
-            oled.write_line("Armed: Cutdown", LINE1);
-
             adc.thermal_control();
             //pressure_log(); // REMOVED: pressure driver is blocking, not needed for cutdown
 
@@ -410,8 +401,6 @@ void Cutdown::cutdown(void)
                 oled.write_line(" !Low Battery!  ", LINE2);
             }
         } else {
-            cycle_oled_info(false);
-
             // check the GPS trigger
             if (gps_trigger()) {
                 trigger_met = true;
@@ -466,20 +455,15 @@ void Cutdown::cutaway(void)
     // wait for a trigger or to be unarmed
     while (!trigger_met) {
         Watchdog.reset();
+        cycle_oled_armed();
     
         if (loop_toggle) {
-            // get new oled info
-            cycle_oled_info(true);
-            oled.write_line("Armed: Cutaway", LINE1);
-
             adc.thermal_control();
 
             if (!check_batteries(true)) {
                 oled.write_line(" !Low Battery!  ", LINE2);
             }
         } else {
-            cycle_oled_info(false);
-
             // check for a pressure trigger
             if (pressure_trigger()) {
                 trigger_met = true;
@@ -845,57 +829,50 @@ void Cutdown::pressure_log(void)
 }
 
 
-void Cutdown::cycle_oled_info(bool cycle)
+void Cutdown::cycle_oled_info()
 {
     String line2_str = "";
     static char line2[17] = "";
     static uint8_t cycle_count = OI_NUM_INFO-1;
-    uint16_t backup_timer = 0;
-    bool ok_to_fly = true;
+    static uint8_t screen_count = 0;
     
     // clear for the new info
     oled.clear();
     
-    if (cycle) {
+    // cycle through screens
+    screen_count = (screen_count + 1) % 4; // keep screen for four cycles
+    if (screen_count == 0) {
         // update the number
         cycle_count = (++cycle_count) % OI_NUM_INFO;
     }
 
     switch (cycle_count) {
     case OI_TPRI:
-        if (cycle) {
+        if (screen_count == 0) {
             cutdown_log(LOG_DEBUG, "tpri %u", (uint32_t) cutdown_config.primary_timer_remaining);
         }
         snprintf(line2, 17, "PRI: ");
         print_time(line2+5, (uint16_t) cutdown_config.primary_timer_remaining);
         oled.write_line(line2, LINE2);
-        tpri_ok = (cutdown_config.primary_timer_remaining > 0 && cutdown_config.primary_timer_remaining <= cutdown_config.primary_timer);
         break;
     case OI_TBCK:
         backup_timer = attiny.read_timer();
-        if (cycle) {
+        if (screen_count == 0) {
             cutdown_log(LOG_DEBUG, "tbck %u", (uint32_t) backup_timer);
         }
         snprintf(line2, 17, "BCK: ");
         print_time(line2+5, (uint16_t) backup_timer);
         oled.write_line(line2, LINE2);
-        tbck_ok = (backup_timer > 0 && backup_timer <= cutdown_config.backup_timer);
         break;
     case OI_SQUIB_PRI:
         if (check_squib(adc.squib_pri.read())) {
             oled.write_line("PRI Squib OK", LINE2);
-            if (cycle) {
+            if (screen_count == 0) {
                 cutdown_log(LOG_DEBUG, "PRI Squib OK");
             }
-            if (cutdown_config.squib_mode == ONE_SQUIB) {
-                squibs_ok = true;
-            } else {
-                squibs_ok = check_squib(adc.squib_bck.read());
-            }
         } else {
-            squibs_ok = false;
             oled.write_line("PRI squib error!", LINE2);
-            if (cycle) {
+            if (screen_count == 0) {
                 cutdown_log(LOG_DEBUG, "PRI squib error!");
             }
         }
@@ -903,12 +880,12 @@ void Cutdown::cycle_oled_info(bool cycle)
     case OI_SQUIB_BCK:
         if (check_squib(adc.squib_bck.read())) {
             oled.write_line("BCK Squib OK", LINE2);
-            if (cycle) {
+            if (screen_count == 0) {
                 cutdown_log(LOG_DEBUG, "BCK Squib OK");
             }
         } else {
             oled.write_line("BCK squib error!", LINE2);
-            if (cycle) {
+            if (screen_count == 0) {
                 cutdown_log(LOG_DEBUG, "BCK squib error!");
             }
         }
@@ -977,28 +954,219 @@ void Cutdown::cycle_oled_info(bool cycle)
         line2_str = String(calculate_temperature(adc.thermistor.check()));
         line2_str += " C";
         oled.write_line((char *) line2_str.c_str(), LINE2);
-        if (calculate_temperature(adc.thermistor.check()) < cutdown_config.temp_set_point - 5.0f) {
-            temp_ok = false;
-        } else {
-            temp_ok = true;
-        }
         break;
     default:
         break;
     }
+}
 
-    if (!cycle) {
+
+bool Cutdown::check_ok_to_fly()
+{
+    bool ok_to_fly = true;
+
+    // check squib(s)
+    squibs_ok = check_squib(adc.squib_pri.read());
+    if (cutdown_config.squib_mode == TWO_SQUIB) {
+        squibs_ok &= check_squib(adc.squib_bck.read());
+    }
+    ok_to_fly &= squibs_ok;
+
+    // check temperature (warmer than 5C below set point)
+    temp_ok = calculate_temperature(adc.thermistor.read()) > cutdown_config.temp_set_point - 5.0f;
+    ok_to_fly &= temp_ok;
+
+    // check batteries (updated in their own function)
+    ok_to_fly &= batt_ok;
+
+    // check timers
+    backup_timer = attiny.read_timer();
+    tpri_ok = (cutdown_config.primary_timer_remaining > 0 && cutdown_config.primary_timer_remaining <= cutdown_config.primary_timer);
+    tbck_ok = (backup_timer > 0 && backup_timer <= cutdown_config.backup_timer);
+    ok_to_fly &= tpri_ok & tbck_ok;
+
+    // check GPS or pressure depending on mode (updated in their own functions)
+    if (cutdown_config.system_mode == MODE_CUTDOWN) {
+        ok_to_fly &= gps_ok;
+    } else {
+        ok_to_fly &= pressure_ok;
+    }
+
+    return ok_to_fly;
+}
+
+
+void Cutdown::cycle_oled_armed()
+{
+    if (check_ok_to_fly()) {
         if (cutdown_config.system_mode == MODE_CUTDOWN) {
-            ok_to_fly = squibs_ok & tpri_ok & tbck_ok & gps_ok & batt_ok & temp_ok;
+            cutdown_oled_ready();
         } else {
-            ok_to_fly = squibs_ok & tpri_ok & tbck_ok & pressure_ok & batt_ok & temp_ok;
+            cutaway_oled_ready();
         }
+    } else {
+        if (cutdown_config.system_mode == MODE_CUTDOWN) {
+            cutdown_oled_fault();
+        } else {
+            cutaway_oled_fault();
+        }
+    }
+}
 
-        if (ok_to_fly) {
-            oled.write_line("READY to fly", LINE1);
-        } else {
-            oled.write_line("NOT READY to fly", LINE1);
-        }
+
+void Cutdown::cutdown_oled_ready()
+{
+    static uint8_t screen = 0;
+    static uint8_t cycle = 0;
+    String line2_str = "";
+
+    // clear for the new info
+    oled.clear();
+    oled.write_line("CUTDOWN READY", LINE1);
+
+    cycle = (cycle + 1) % 4;
+    if (cycle == 0) {
+        screen = (screen + 1) % 2;
+    }
+
+    switch (screen) {
+    case 0:
+        line2_str += "H:";
+        line2_str += String(gps.gps_data.height);
+        line2_str += " D:";
+        line2_str += String(gps.gps_data.displacement);
+        oled.write_line((char *) line2_str.c_str(), LINE2);
+        break;
+    case 1:
+        line2_str += "T:";
+        line2_str += String(cutdown_config.primary_timer_remaining);
+        line2_str += " BT:";
+        line2_str += String(backup_timer); // updated in check_ok_to_fly()
+        oled.write_line((char *) line2_str.c_str(), LINE2);
+        break;
+    default:
+        break;
+    }
+}
+
+
+void Cutdown::cutaway_oled_ready()
+{
+    static uint8_t screen = 0;
+    static uint8_t cycle = 0;
+    String line2_str = "";
+
+    // clear for the new info
+    oled.clear();
+    oled.write_line("CUTAWAY READY", LINE1);
+
+    cycle = (cycle + 1) % 4;
+    if (cycle == 0) {
+        screen = (screen + 1) % 2;
+    }
+
+    switch (screen) {
+    case 0:
+        line2_str += "P:";
+        line2_str += String(last_pressure);
+        line2_str += " hPa";
+        oled.write_line((char *) line2_str.c_str(), LINE2);
+        break;
+    case 1:
+        line2_str += "T:";
+        line2_str += String(cutdown_config.primary_timer_remaining);
+        line2_str += " BT:";
+        line2_str += String(backup_timer); // updated in check_ok_to_fly()
+        oled.write_line((char *) line2_str.c_str(), LINE2);
+        break;
+    default:
+        break;
+    }
+}
+
+
+void Cutdown::cutdown_oled_fault()
+{
+    static uint8_t screen = 0;
+    static uint8_t cycle = 0;
+    String line2_str = "";
+
+    // clear for the new info
+    oled.clear();
+    oled.write_line("CUTDOWN FAULT", LINE1);
+
+    cycle = (cycle + 1) % 4;
+    if (cycle == 0) {
+        screen = (screen + 1) % 3;
+    }
+
+    switch (screen) {
+    case 0:
+        line2_str += "GPS:";
+        line2_str += (gps_ok ? "OK" : "FT");
+        line2_str += " SQB:";
+        line2_str += (squibs_ok ? "OK" : "FT");
+        oled.write_line((char *) line2_str.c_str(), LINE2);
+        break;
+    case 1:
+        line2_str += "TPRI:";
+        line2_str += (tpri_ok ? "OK" : "FT");
+        line2_str += " TBCK:";
+        line2_str += (tbck_ok ? "OK" : "FT");
+        oled.write_line((char *) line2_str.c_str(), LINE2);
+        break;
+    case 2:
+        line2_str += "BATT:";
+        line2_str += (batt_ok ? "OK" : "FT");
+        line2_str += " TEMP:";
+        line2_str += (temp_ok ? "OK" : "FT");
+        oled.write_line((char *) line2_str.c_str(), LINE2);
+        break;
+    default:
+        break;
+    }
+}
+
+
+void Cutdown::cutaway_oled_fault()
+{
+    static uint8_t screen = 0;
+    static uint8_t cycle = 0;
+    String line2_str = "";
+
+    // clear for the new info
+    oled.clear();
+    oled.write_line("CUTAWAY FAULT", LINE1);
+
+    cycle = (cycle + 1) % 4;
+    if (cycle == 0) {
+        screen = (screen + 1) % 3;
+    }
+
+    switch (screen) {
+    case 0:
+        line2_str += "PRESS:";
+        line2_str += (pressure_ok ? "OK" : "FT");
+        line2_str += " SQB:";
+        line2_str += (squibs_ok ? "OK" : "FT");
+        oled.write_line((char *) line2_str.c_str(), LINE2);
+        break;
+    case 1:
+        line2_str += "TPRI:";
+        line2_str += (tpri_ok ? "OK" : "FT");
+        line2_str += " TBCK:";
+        line2_str += (tbck_ok ? "OK" : "FT");
+        oled.write_line((char *) line2_str.c_str(), LINE2);
+        break;
+    case 2:
+        line2_str += "BATT:";
+        line2_str += (batt_ok ? "OK" : "FT");
+        line2_str += " TEMP:";
+        line2_str += (temp_ok ? "OK" : "FT");
+        oled.write_line((char *) line2_str.c_str(), LINE2);
+        break;
+    default:
+        break;
     }
 }
 
