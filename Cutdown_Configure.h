@@ -10,7 +10,7 @@
 
 #include <stdint.h>
 
-#define CURRENT_CONFIG_VERSION  0xA5C90009
+#define CURRENT_CONFIG_VERSION  0xA5C9000A
 
 #define Serial SERIAL_PORT_USBVIRTUAL
 
