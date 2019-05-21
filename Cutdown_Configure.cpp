@@ -129,6 +129,15 @@ static bool process_command(void)
         return true;
     }
 
+    if (0 == (strcmp(command_buffer, CMD_LOW_ALT_TIMER))) {
+        if ((int_value = parse_int()) <= 0) return false;
+
+        cutdown_config.low_alt_timer = (uint16_t) int_value;
+        Serial.print("Set low alt timer (s): ");
+        Serial.println(cutdown_config.low_alt_timer);
+        return true;
+    }
+
     if (0 == (strcmp(command_buffer, CMD_TRIGGER_HEIGHT))) {
         if ((float_value = parse_float()) == 0.0f) return false;
 
@@ -303,6 +312,7 @@ void display_menu(void)
     Serial.println("Command format: CMD,value"); delay(1);
     Serial.println("TPRI,(uint16) primary timer [s]"); delay(1);
     Serial.println("TBCK,(uint16) backup timer [s]"); delay(1);
+    Serial.println("TLOWA,(uint16) low alt timer [s]"); delay(1);
     Serial.println("HEIGHT,(float) cutdown height [km]"); delay(1);
     Serial.println("DIST,(float) cutown distance [km]"); delay(1);
     Serial.println("CEIL,(float) cutaway ceiling [hPa]"); delay(1);
@@ -329,7 +339,7 @@ void display_menu(void)
 void display_fee(void)
 {
     if (!load_config_from_fee()) {
-        Serial.println("Invalid config version in FEE! Update any config to re-write");
+        Serial.println("Invalid config version in FEE!");
         return;
     }
 
@@ -339,6 +349,7 @@ void display_fee(void)
     Serial.print("Primary timer: "); Serial.print(cutdown_config.primary_timer); Serial.println(" s"); delay(1);
     Serial.print("Remaining primary timer: "); Serial.print(cutdown_config.primary_timer_remaining); Serial.println(" s"); delay(1);
     Serial.print("Backup timer: "); Serial.print(cutdown_config.backup_timer); Serial.println(" s"); delay(1);
+    Serial.print("Low alt timer: "); Serial.print(cutdown_config.low_alt_timer); Serial.println(" s"); delay(1);
     Serial.print("Trigger height: "); Serial.print(cutdown_config.trigger_height); Serial.println(" km"); delay(1);
     Serial.print("Trigger distance: "); Serial.print(cutdown_config.trigger_distance); Serial.println(" km"); delay(1);
     Serial.print("Cutaway ceiling: "); Serial.print(cutdown_config.cutaway_ceiling); Serial.println(" hPa"); delay(1);

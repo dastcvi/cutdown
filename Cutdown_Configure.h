@@ -10,13 +10,14 @@
 
 #include <stdint.h>
 
-#define CURRENT_CONFIG_VERSION  0xA5C9000A
+#define CURRENT_CONFIG_VERSION  0xA5C9000C
 
 #define Serial SERIAL_PORT_USBVIRTUAL
 
 // commands (all of form "cmd,value\n" in ASCII)
 #define CMD_PRIMARY_TIMER    "TPRI"
 #define CMD_BACKUP_TIMER     "TBCK"
+#define CMD_LOW_ALT_TIMER    "TLOWA"
 #define CMD_TRIGGER_HEIGHT   "HEIGHT"
 #define CMD_TRIGGER_DISTANCE "DIST"
 #define CMD_CRITICAL_VOLT    "VCRIT"
@@ -52,7 +53,8 @@ typedef enum : uint8_t {
     TRIG_GPSD = 4,
     TRIG_ALT = 5,
     TRIG_BURST = 6,
-    TRIG_SINK = 7
+    TRIG_SINK = 7,
+    TRIG_LOWA = 8
 } Trigger_t;
 
 /* Important notes:
@@ -76,6 +78,7 @@ typedef struct {
     uint16_t primary_timer;
     uint16_t primary_timer_remaining;
     uint16_t backup_timer;
+    uint16_t low_alt_timer;
     // triggers
     float trigger_height;
     float trigger_distance;

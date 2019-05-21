@@ -39,6 +39,7 @@ typedef enum {
 typedef enum : uint8_t {
     OI_TPRI = 0,
     OI_TBCK,
+    OI_TLOWA,
     OI_SQUIB_PRI,
     OI_SQUIB_BCK,
     OI_LASTGPS,

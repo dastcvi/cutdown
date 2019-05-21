@@ -199,13 +199,13 @@ void Cutdown::unarmed(void)
 
     Watchdog.reset();
 
+    // reset cutaway ceiling tracker and low altitude timer
+    cutdown_config.ceiling_reached = false;
+
     // reset the timer
     cutdown_config.primary_timer_remaining = cutdown_config.primary_timer;
     last_fee_write = cutdown_config.primary_timer_remaining;
     write_config_to_fee();
-
-    // reset cutaway ceiling tracker
-    cutdown_config.ceiling_reached = false;
 
     // update the OLED
     oled.clear();
@@ -767,7 +767,9 @@ void Cutdown::gps_log()
 bool Cutdown::pressure_trigger()
 {
     static float last_pressures[10] = {0, 10, 20, 30, 40, 50, 60, 70, 80, 90}; // ensure no false static reading on reboot
+    static uint16_t low_altitude_timer = 65000; // will be overwritten on start
     static uint8_t pressure_index = 0;
+    static bool low_altitude_started = false;
     float mpl_temp = 0.0f;
     
     float running_avg = 0.0f;
@@ -797,6 +799,19 @@ bool Cutdown::pressure_trigger()
             cutdown_log(LOG_INFO, "Reached ceiling");
         }
     } else if (cutdown_config.ceiling_reached && last_pressure > cutdown_config.cutaway_ceiling) {
+        // run the low altitude timer
+        if (!low_altitude_started) {
+            low_altitude_started = true;
+            low_altitude_timer = cutdown_config.low_alt_timer / 2; // workaround for the fact that this function called at 0.5 Hz
+            cutdown_log(LOG_INFO, "Started low pressure timer");
+        } else {
+            low_altitude_timer -= 1;
+            if (low_altitude_timer == 0) {
+                cutdown_config.trigger_type = TRIG_LOWA;
+                return true;
+            }
+        }
+        
         // get the current running average
         for (int i = 0; i < 10; i++) {
             running_avg += last_pressures[i];
@@ -862,6 +877,11 @@ void Cutdown::cycle_oled_info()
         }
         snprintf(line2, 17, "BCK: ");
         print_time(line2+5, (uint16_t) backup_timer);
+        oled.write_line(line2, LINE2);
+        break;
+    case OI_TLOWA:
+        snprintf(line2, 17, "LOWA: ");
+        print_time(line2+6, (uint16_t) cutdown_config.low_alt_timer);
         oled.write_line(line2, LINE2);
         break;
     case OI_SQUIB_PRI:
@@ -1171,6 +1191,7 @@ void Cutdown::cutaway_oled_fault()
 }
 
 
+// to avoid roll-over bug with unsigned int, decrement only one second even if multiple pass (should be very low probability)
 void Cutdown::decrement_timer(uint8_t seconds)
 {
     cutdown_config.primary_timer_remaining -= 1;
