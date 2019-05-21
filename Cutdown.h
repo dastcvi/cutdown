@@ -39,6 +39,7 @@ typedef enum {
 typedef enum : uint8_t {
     OI_TPRI = 0,
     OI_TBCK,
+    OI_TLOWA,
     OI_SQUIB_PRI,
     OI_SQUIB_BCK,
     OI_LASTGPS,
@@ -103,20 +104,29 @@ private:
     void gps_log();
     bool pressure_trigger();
     void pressure_log();
-    void cycle_oled_info(bool cycle);
+    void cycle_oled_info();
+    void cycle_oled_armed();
+    bool check_ok_to_fly();
+    void cutdown_oled_ready();
+    void cutdown_oled_fault();
+    void cutaway_oled_ready();
+    void cutaway_oled_fault();
     void decrement_timer(uint8_t seconds);
     
     // ready-for-flight checks
+    bool gps_ok;
     bool squibs_ok;
+    bool pressure_ok;
     bool tpri_ok;
     bool tbck_ok;
-    bool gps_ok;
-    bool pressure_ok;
     bool batt_ok;
     bool temp_ok;
 
     // holds time of last config write to Flash-Emulated EEPROM
     uint16_t last_fee_write;
+
+    // holds last value of backup timer
+    uint16_t backup_timer;
 };
 
 #endif

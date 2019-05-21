@@ -31,6 +31,8 @@
 #define CUTDOWN_TIMER           7200  // s (>18 hours)
 #define CUTDOWN_BACKUP_TIMER    7500  // s (>18 hours)
 
+#define LOW_ALT_TIMER           120   // s
+
 #define CUTDOWN_HEIGHT          30.0  // km
 #define CUTDOWN_DISTANCE        100.0 // km
 
@@ -73,6 +75,8 @@ bool write_config(void)
         Serial.println("Invalid system mode for config!");
         return false;
     }
+
+    cutdown_config.low_alt_timer = LOW_ALT_TIMER;
 
     cutdown_config.trigger_height = CUTDOWN_HEIGHT;
     cutdown_config.trigger_distance = CUTDOWN_DISTANCE;
@@ -118,6 +122,9 @@ bool write_config(void)
 
     success &= (config_compare.backup_timer == cutdown_config.backup_timer);
     Serial.print("Backup timer: "); Serial.println(cutdown_config.backup_timer);
+    
+    success &= (config_compare.low_alt_timer == cutdown_config.low_alt_timer);
+    Serial.print("Low alt timer: "); Serial.println(cutdown_config.low_alt_timer);
 
     success &= (config_compare.trigger_height == cutdown_config.trigger_height);
     Serial.print("Trigger height: "); Serial.println(cutdown_config.trigger_height);
