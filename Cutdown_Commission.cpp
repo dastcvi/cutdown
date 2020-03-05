@@ -1,7 +1,7 @@
 /* Author: Alex St. Clair
  * Filename: Cutdown_Commission.cpp
  * Created: 1-9-19
- * 
+ *
  * Used to initially flash the Flash-Emulated EEPROM
  * and test hardware when a board is commissioned.
  */
@@ -20,9 +20,9 @@
 #define PAWNEE_LONGITUDE        -104.638230
 
 // -------- CHANGE CONFIGS HERE --------
-#define SERIAL_NUMBER           120
+#define SERIAL_NUMBER           200
 
-#define SYSTEM_MODE             MODE_CUTAWAY
+#define SYSTEM_MODE             MODE_CUTDOWN
 #define SQUIB_MODE              ONE_SQUIB
 
 #define CUTAWAY_TIMER           18000 // s (5 hours)
@@ -122,7 +122,7 @@ bool write_config(void)
 
     success &= (config_compare.backup_timer == cutdown_config.backup_timer);
     Serial.print("Backup timer: "); Serial.println(cutdown_config.backup_timer);
-    
+
     success &= (config_compare.low_alt_timer == cutdown_config.low_alt_timer);
     Serial.print("Low alt timer: "); Serial.println(cutdown_config.low_alt_timer);
 

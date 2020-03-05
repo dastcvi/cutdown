@@ -1,7 +1,7 @@
 /* Author: Alex St. Clair
  * Filename: Cutdown.cpp
  * Created: 11-29-18
- * 
+ *
  * Implements a class that represents the cutdown controller and
  * performs its responsibilities.
  */
@@ -47,7 +47,7 @@ static void t3_isr(void)
 static uint8_t wait_timer(uint8_t check_value)
 {
     uint8_t ret_value = 0;
-    
+
     while (ret_value == 0) {
         __disable_irq();
         if (timer_seconds >= check_value) {
@@ -55,7 +55,7 @@ static uint8_t wait_timer(uint8_t check_value)
             timer_seconds = 0;
         }
         __enable_irq();
-        
+
         delay(1); // no spamming the critical section
     }
 
@@ -113,6 +113,10 @@ void Cutdown::init(void)
 {
     delay(2000);
 
+    // initialize these first
+    cutdown_pinmux();
+    logger_init();
+
     // if bad config AND not armed, enter commissioning (WILL NEED POWER CYCLE TO RUN NORMALLY!)
     if (!load_config_from_fee() && !arm_signal()) {
         cutdown_log(LOG_ERROR, "Config error, entering commission mode!");
@@ -131,7 +135,6 @@ void Cutdown::init(void)
     cutdown_log(LOG_INFO, "Serial Number: %u", (uint32_t) cutdown_config.serial_number);
 
     // start drivers
-    cutdown_pinmux();
     oled.init();
     attiny.init();
     adc.init();
@@ -139,7 +142,6 @@ void Cutdown::init(void)
     Wire.begin();
     baro.begin();
     timer_init();
-    logger_init();
     Watchdog.enable(8000); // loose 8 second reset period
 
     // allows a small wait, and aligns timing
@@ -247,7 +249,7 @@ void Cutdown::unarmed(void)
     // wait to be armed, while checking for config updates
     while (!arm_signal()) {
         Watchdog.reset();
-        
+
         // get new OLED info
         cycle_oled_info();
         if (cutdown_config.system_mode == MODE_CUTAWAY) {
@@ -280,7 +282,7 @@ void Cutdown::unarmed(void)
                     wait_timer(5);
                 }
             }
-            
+
             // reset primary timer in case updated
             cutdown_config.primary_timer_remaining = cutdown_config.primary_timer;
             last_fee_write = cutdown_config.primary_timer_remaining;
@@ -327,7 +329,7 @@ void Cutdown::arm(void)
         } else {
             oled.write_line("CUTDOWN GPS WAIT", LINE1);
         }
-        
+
         if (loop_toggle) {
             adc.thermal_control();
             pressure_log();
@@ -429,7 +431,11 @@ void Cutdown::cutdown(void)
 
     Watchdog.reset();
 
-    state = ST_FIRE;
+    if (THERMAL == cutdown_config.squib_mode) {
+        state = ST_FIRE_THERMAL;
+    } else {
+        state = ST_FIRE_SQUIBS;
+    }
 }
 
 
@@ -456,7 +462,7 @@ void Cutdown::cutaway(void)
     while (!trigger_met) {
         Watchdog.reset();
         cycle_oled_armed();
-    
+
         if (loop_toggle) {
             adc.thermal_control();
 
@@ -492,11 +498,15 @@ void Cutdown::cutaway(void)
 
     Watchdog.reset();
 
-    state = ST_FIRE;
+    if (THERMAL == cutdown_config.squib_mode) {
+        state = ST_FIRE_THERMAL;
+    } else {
+        state = ST_FIRE_SQUIBS;
+    }
 }
 
 
-void Cutdown::fire(void)
+void Cutdown::fire_squibs(void)
 {
     bool gps_fixed = false;
     float cut_height = 0.0f;
@@ -508,7 +518,7 @@ void Cutdown::fire(void)
     // inform of firing on oled
     oled.clear();
     oled.write_line("Trigger Reached!", LINE1);
-    cutdown_log(LOG_INFO, "Fire state!");
+    cutdown_log(LOG_INFO, "Fire squibs state!");
     wait_timer(1);
 
     Watchdog.reset();
@@ -593,6 +603,102 @@ void Cutdown::fire(void)
             // re-fire backup
             digitalWrite(SQUIB_BCK_GATE, HIGH);
             delay(1000);
+            digitalWrite(SQUIB_BCK_GATE, LOW);
+        }
+    }
+
+    Watchdog.reset();
+
+    // now that we've succeeded write to be very large in case of reboot
+    cutdown_config.primary_timer_remaining = 64800; // 18h
+    write_config_to_fee();
+
+    wait_timer(1);
+    state = ST_FINISHED;
+}
+
+
+void Cutdown::fire_thermal(void)
+{
+    bool gps_fixed = false;
+    float cut_height = 0.0f;
+
+    // insurance in case of a reboot in this loop
+    cutdown_config.primary_timer_remaining = 60;
+    write_config_to_fee();
+
+    // inform of firing on oled
+    oled.clear();
+    oled.write_line("Trigger Reached!", LINE1);
+    cutdown_log(LOG_INFO, "Fire thermal state!");
+    wait_timer(1);
+
+    Watchdog.reset();
+
+    // perform countdown with audible warnings
+    oled.write_line("Firing: 5", LINE2);
+    digitalWrite(BUZZER, HIGH);
+    wait_timer(1);
+    oled.write_line("Firing: 4", LINE2);
+    digitalWrite(BUZZER, LOW);
+    wait_timer(1);
+    oled.write_line("Firing: 3", LINE2);
+    digitalWrite(BUZZER, HIGH);
+    wait_timer(1);
+    oled.write_line("Firing: 2", LINE2);
+    digitalWrite(BUZZER, LOW);
+    wait_timer(1);
+    oled.write_line("Firing: 1", LINE2);
+    digitalWrite(BUZZER, HIGH);
+    wait_timer(1);
+    digitalWrite(BUZZER, LOW);
+
+    Watchdog.reset();
+
+    // get a final GPS location before cutdown (NOT used for cutaway)
+    gps_fixed = (FIX_3D == gps.update_fix());
+    cut_height = gps.gps_data.height;
+
+    // fire the primary thermal line for 10 seconds
+    digitalWrite(SQUIB_PRI_GATE, HIGH);
+    oled.write_line("Primary", LINE2);
+    wait_timer(5);
+    Watchdog.reset();
+    wait_timer(5);
+    Watchdog.reset();
+    digitalWrite(SQUIB_PRI_GATE, LOW);
+
+    // fire the backup thermal line for ten seconds
+    digitalWrite(SQUIB_BCK_GATE, HIGH);
+    oled.write_line("Backup", LINE2);
+    wait_timer(5);
+    Watchdog.reset();
+    wait_timer(5);
+    Watchdog.reset();
+    digitalWrite(SQUIB_BCK_GATE, LOW);
+
+    // if cutdown mode, try to ensure that we're actually falling
+    if (cutdown_config.system_mode == MODE_CUTDOWN && gps_fixed) {
+        delay(1000); // allow to fall for a bit
+
+        // make sure we aren't still going up
+        if (FIX_3D == gps.update_fix() && cut_height < gps.gps_data.height) {
+            cutdown_log(LOG_ERROR, "Still ascending after fire!");
+
+            // re-fire primary
+            digitalWrite(SQUIB_PRI_GATE, HIGH);
+            wait_timer(5);
+            Watchdog.reset();
+            wait_timer(5);
+            Watchdog.reset();
+            digitalWrite(SQUIB_PRI_GATE, LOW);
+
+            // re-fire backup
+            digitalWrite(SQUIB_BCK_GATE, HIGH);
+            wait_timer(5);
+            Watchdog.reset();
+            wait_timer(5);
+            Watchdog.reset();
             digitalWrite(SQUIB_BCK_GATE, LOW);
         }
     }
@@ -725,12 +831,12 @@ bool Cutdown::gps_trigger()
     if (gps.gps_data.height > 3.0 && last_height != GPS_INVALID_FLOAT && oldest_height != GPS_INVALID_FLOAT) {
         // see if we've reached the burst trigger (burst rate multiplied by two since measurements are at 0.5 Hz)
         // heights are multiplied by 1000 to convert from km to m
-        if ((oldest_height - last_height)*1000.0 > (2*cutdown_config.burst_fall_rate) 
+        if ((oldest_height - last_height)*1000.0 > (2*cutdown_config.burst_fall_rate)
         && (last_height - gps.gps_data.height)*1000.0 > (2*cutdown_config.burst_fall_rate)) {
             cutdown_config.trigger_type = TRIG_BURST;
             return true;
         }
-        
+
         // check if we're sinking and if the trigger has been met
         if (last_height > gps.gps_data.height) {
             num_sinking++;
@@ -771,16 +877,16 @@ bool Cutdown::pressure_trigger()
     static uint8_t pressure_index = 0;
     static bool low_altitude_started = false;
     float mpl_temp = 0.0f;
-    
+
     float running_avg = 0.0f;
 
     // get a new pressure reading
     last_pressure = baro.getPressure() / 100.0f;
     cutdown_log(LOG_DEBUG, "press ", last_pressure);
-    
+
     // ok for launch if below ceiling and reasonable value
     pressure_ok = (last_pressure < 1050.0f && last_pressure > cutdown_config.cutaway_ceiling);
-    
+
     // add to the last 10 pressures
     last_pressures[pressure_index] = last_pressure;
     pressure_index = (pressure_index + 1) % 10;
@@ -811,13 +917,13 @@ bool Cutdown::pressure_trigger()
                 return true;
             }
         }
-        
+
         // get the current running average
         for (int i = 0; i < 10; i++) {
             running_avg += last_pressures[i];
         }
         running_avg /= 10;
-    
+
         // if running average and last pressure are within 1 hPa, trigger
         if (last_pressure - running_avg < 1.0f && last_pressure - running_avg > -1.0f) {
             cutdown_config.trigger_type = TRIG_ALT;
@@ -835,7 +941,7 @@ void Cutdown::pressure_log(void)
 
     last_pressure = baro.getPressure() / 100.0f;
     mpl_temp = baro.getTemperature();
-    
+
     // ok for launch if below ceiling and reasonable value
     pressure_ok = (last_pressure < 1050.0f && last_pressure > cutdown_config.cutaway_ceiling);
 
@@ -850,10 +956,10 @@ void Cutdown::cycle_oled_info()
     static char line2[17] = "";
     static uint8_t cycle_count = OI_NUM_INFO-1;
     static uint8_t screen_count = 0;
-    
+
     // clear for the new info
     oled.clear();
-    
+
     // cycle through screens
     screen_count = (screen_count + 1) % 4; // keep screen for four cycles
     if (screen_count == 0) {
@@ -987,7 +1093,7 @@ bool Cutdown::check_ok_to_fly()
 
     // check squib(s)
     squibs_ok = check_squib(adc.squib_pri.read());
-    if (cutdown_config.squib_mode == TWO_SQUIB) {
+    if (cutdown_config.squib_mode != ONE_SQUIB) {
         squibs_ok &= check_squib(adc.squib_bck.read());
     }
     ok_to_fly &= squibs_ok;

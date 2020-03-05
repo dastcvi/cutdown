@@ -1,7 +1,7 @@
 /* Author: Alex St. Clair
  * Filename: Cutdown_Configure.h
  * Created: 11-30-18
- * 
+ *
  * Defines a driver for setting and maintaining configurations
  */
 
@@ -10,7 +10,7 @@
 
 #include <stdint.h>
 
-#define CURRENT_CONFIG_VERSION  0xA5C9000C
+#define CURRENT_CONFIG_VERSION  0xA5C9000E
 
 #define Serial SERIAL_PORT_USBVIRTUAL
 
@@ -42,6 +42,7 @@ typedef enum : uint8_t {
 } Cutdown_Mode_t;
 
 typedef enum : uint8_t {
+    THERMAL = 0,
     ONE_SQUIB = 1,
     TWO_SQUIB = 2
 } Squib_Mode_t;

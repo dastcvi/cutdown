@@ -1,7 +1,7 @@
 /* Author: Alex St. Clair
  * Filename: Cutdown_Logger.h
  * Created: 1-9-19
- * 
+ *
  * Defines functions to log debug info over the future radio
  * interface to a separate logging device.
  */
@@ -9,7 +9,7 @@
 #ifndef CUTDOWN_LOGGER_H
 #define CUTDOWN_LOGGER_H
 
-#include "Cutdown_Pinout_RevB.h"
+#include "Cutdown_Pinout.h"
 #include "Arduino.h"
 #include "SERCOM.h"
 #include "wiring_private.h"

@@ -1,9 +1,9 @@
 /* Author: Alex St. Clair
  * Filename: Cutdown_GPS.h
  * Created: 12-17-18
- * 
+ *
  * Defines a driver to interface with the uBlox MAX-M8 GPS
- * 
+ *
  * This driver implements a polling interface using the uBlox UBX protocol in lieu of
  * reading NMEA strings output at a standard interval. This minimizes bus traffic (only
  * one binary UBX message is necessary) and removes the need to asynchronously buffer
@@ -14,7 +14,7 @@
 #define CUTDOWN_GPS_H
 
 #include "Cutdown_GPS_Messages.h"
-#include "Cutdown_Pinout_RevB.h"
+#include "Cutdown_Pinout.h"
 #include "Arduino.h"
 #include "SERCOM.h"
 #include "wiring_private.h"

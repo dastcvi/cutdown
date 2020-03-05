@@ -1,7 +1,7 @@
 /* Author: Alex St. Clair
  * Filename: Cutdown_Configure.h
  * Created: 11-30-18
- * 
+ *
  * Defines a driver for setting and maintaining configurations
  */
 
@@ -86,8 +86,8 @@ static int parse_int(void)
 {
     int value = 0;
     value = atoi(value_buffer);
-    if (value <= 0) {
-        Serial.println("Invalid config int, must be >0");
+    if (value < 0) {
+        Serial.println("Invalid config int, must be >=0");
     }
 
     return value;
@@ -184,10 +184,10 @@ static bool process_command(void)
     }
 
     if (0 == (strcmp(command_buffer, CMD_SQUIB_MODE))) {
-        if ((int_value = parse_int()) <= 0) return false;
+        if ((int_value = parse_int()) < 0) return false;
 
         if (int_value > 2) {
-            Serial.println("Invalid squib number, must be 1 or 2");
+            Serial.println("Invalid squib number, must be 0, 1, or 2");
             return false;
         }
 
@@ -217,7 +217,7 @@ static bool process_command(void)
             Serial.println("Set mode to cutdown");
             return true;
         }
-        
+
         if (0 == (strcmp(value_buffer, "cutaway")) || 0 == (strcmp(value_buffer, "CUTAWAY"))) {
             cutdown_config.system_mode = MODE_CUTAWAY;
             Serial.println("Set mode to cutaway");
@@ -308,7 +308,7 @@ static bool process_command(void)
 void display_menu(void)
 {
     Serial.println("\n--- Config Menu ---\n"); delay(1);
-    
+
     Serial.println("Command format: CMD,value"); delay(1);
     Serial.println("TPRI,(uint16) primary timer [s]"); delay(1);
     Serial.println("TBCK,(uint16) backup timer [s]"); delay(1);
@@ -326,13 +326,13 @@ void display_menu(void)
     Serial.println("TEMP,(float) temperature set point [C]"); delay(1);
     Serial.println("BURST,(float) fall rate for burst condition [m/s]"); delay(1);
     Serial.println("SINK,(uint16) number of sequential sinking altitudes for sink condition"); delay(1);
-    Serial.println("SQUIBS,(1/2) number of squibs"); delay(1);
+    Serial.println("SQUIBS,(0-2) thermal (0) or number of squibs (1/2)"); delay(1);
     Serial.println("TRIG,(1-7) trigger result"); delay(1);
-    
+
     Serial.println("\nSpecial commands:"); delay(1);
     Serial.println("MENU (print menu)"); delay(1);
     Serial.println("READ (read+display FEE contents)"); delay(1);
-    
+
     Serial.println("\n-------------------\n");
 }
 
