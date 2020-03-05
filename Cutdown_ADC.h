@@ -1,14 +1,14 @@
 /* Author: Alex St. Clair
  * Filename: Cutdown_ADC.h
  * Created: 12-17-18
- * 
+ *
  * Defines a driver to use the SAMD21 ADC through the Arduino IDE
  */
 
 #ifndef CUTDOWN_ADC_H
 #define CUTDOWN_ADC_H
 
-#include "Cutdown_Pinout_RevB.h"
+#include "Cutdown_Pinout.h"
 #include "Arduino.h"
 #include "wiring_private.h"
 #include <stdint.h>

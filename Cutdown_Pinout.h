@@ -1,7 +1,7 @@
 /* Author: Alex St. Clair
  * Filename: Cutdown_Pinout.h
  * Created: 11-29-18
- * 
+ *
  * Defines pins and other hardware features for the cutdown board
  */
 
@@ -13,6 +13,12 @@
 #include "UART.h"
 #include "SPI.h"
 #include "wiring_private.h"
+
+#define REV_B 1
+#define REV_C REV_B
+#define REV_D 2
+
+#define CURRENT_REV REV_D
 
 // pinouts from the arduino variant file:
 // https://github.com/arduino/ArduinoCore-samd/blob/master/variants/arduino_zero/variant.cpp#L17

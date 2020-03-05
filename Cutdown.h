@@ -1,7 +1,7 @@
 /* Author: Alex St. Clair
  * Filename: Cutdown.h
  * Created: 11-29-18
- * 
+ *
  * Defines a class that represents the cutdown controller and
  * performs its responsibilities.
  */
@@ -9,7 +9,7 @@
 #ifndef CUTDOWN_H
 #define CUTDOWN_H
 
-#include "Cutdown_Pinout_RevB.h"
+#include "Cutdown_Pinout.h"
 #include "Cutdown_OLED.h"
 #include "Cutdown_ATtiny.h"
 #include "Cutdown_ADC.h"
@@ -30,7 +30,8 @@ typedef enum {
     ST_ARM,
     ST_CUTDOWN,
     ST_CUTAWAY,
-    ST_FIRE,
+    ST_FIRE_SQUIBS,
+    ST_FIRE_THERMAL,
     ST_FINISHED,
     NUM_STATES
 } State_t;
@@ -63,7 +64,7 @@ public:
     // Public interface
     void init();
     void run();
-    
+
     // Driver instances (public for testing purposes)
     Cutdown_OLED oled;
     Cutdown_ATtiny attiny;
@@ -79,7 +80,8 @@ private:
     void arm(void);
     void cutdown(void);
     void cutaway(void);
-    void fire(void);
+    void fire_squibs(void);
+    void fire_thermal(void);
     void finished(void);
 
     // State variable
@@ -91,7 +93,8 @@ private:
         &Cutdown::arm,
         &Cutdown::cutdown,
         &Cutdown::cutaway,
-		&Cutdown::fire,
+		&Cutdown::fire_squibs,
+        &Cutdown::fire_thermal,
 		&Cutdown::finished
 	};
 
@@ -112,7 +115,7 @@ private:
     void cutaway_oled_ready();
     void cutaway_oled_fault();
     void decrement_timer(uint8_t seconds);
-    
+
     // ready-for-flight checks
     bool gps_ok;
     bool squibs_ok;

@@ -1,14 +1,14 @@
 /* Author: Alex St. Clair
  * Filename: Cutdown_OLED.h
  * Created: 11-30-18
- * 
+ *
  * Defines a driver for the NHD-0216CW-AW3 2x16 OLED character display
  */
 
 #ifndef CUTDOWN_OLED_H
 #define CUTDOWN_OLED_H
 
-#include "Cutdown_Pinout_RevB.h"
+#include "Cutdown_Pinout.h"
 #include "Arduino.h"
 #include "SERCOM.h"
 #include "SPI.h"
