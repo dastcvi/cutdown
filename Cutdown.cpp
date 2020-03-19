@@ -547,6 +547,7 @@ void Cutdown::fire_squibs(void)
     cut_height = gps.gps_data.height;
 
     // fire the primary squib!
+    cutdown_log(LOG_INFO, "Firing primary");
     digitalWrite(BUZZER, LOW);
     digitalWrite(SQUIB_PRI_GATE, HIGH);
     delay(1000); // should only need a few ms
@@ -662,15 +663,31 @@ void Cutdown::fire_thermal(void)
     // fire the primary thermal line for 10 seconds
     digitalWrite(SQUIB_PRI_GATE, HIGH);
     oled.write_line("Primary", LINE2);
+    cutdown_log(LOG_INFO, "Firing primary");
     wait_timer(5);
     Watchdog.reset();
     wait_timer(5);
     Watchdog.reset();
     digitalWrite(SQUIB_PRI_GATE, LOW);
 
+    // wait for thirty seconds
+    wait_timer(5);
+    Watchdog.reset();
+    wait_timer(5);
+    Watchdog.reset();
+    wait_timer(5);
+    Watchdog.reset();
+    wait_timer(5);
+    Watchdog.reset();
+    wait_timer(5);
+    Watchdog.reset();
+    wait_timer(5);
+    Watchdog.reset();
+
     // fire the backup thermal line for ten seconds
     digitalWrite(SQUIB_BCK_GATE, HIGH);
     oled.write_line("Backup", LINE2);
+    cutdown_log(LOG_INFO, "Firing backup");
     wait_timer(5);
     Watchdog.reset();
     wait_timer(5);
