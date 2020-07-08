@@ -1,6 +1,10 @@
 # cutdown
 This repo holds software for the LASP high altitude balloon cutdown controller's primary microcontroller (ATSAMD21G18A). It is in the form of an Arduino library since the board is programmed as if it is an Adafruit Feather M0.
 
+For detailed documentation, see `documentation.pdf`.
+
+See also [Cutown Hardware](https://github.com/dastcvi/cutdown_hardware) and [Cutdown Backup](https://github.com/dastcvi/cutdown_backup).
+
 ## Hardware
 There are two hardware revisions that this library currently supports. Both can be found in [this repository](https://github.com/dastcvi/cutdown_hardware) as releases.
 
